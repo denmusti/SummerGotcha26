@@ -236,7 +236,9 @@ export default function PubliekePage() {
             {/* Footer */}
             <div style={{ textAlign: 'center', marginTop: 40, color: '#ffffff22', fontSize: 12 }}>
               Automatische refresh elke 30s &nbsp;·&nbsp;
-              <a href="/admin" style={{ color: '#ffffff33', textDecoration: 'none' }}>Admin</a>
+              <a href="/mijn-doelwit" style={{ color: ACCENT, textDecoration: "none", fontWeight: "bold" }}>🎯 Mijn doelwit</a>
+              &nbsp;;&nbsp;
+              <a href="/admin" style={{ color: "#ffffff33", textDecoration: "none" }}>Admin</a>
             </div>
           </>
         ) : (
