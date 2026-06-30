@@ -111,7 +111,8 @@ export default function AdminPage() {
   }
 
   async function laadDeelnemers() {
-    const res = await fetch(`/api/deelnemers?wachtwoord=${encodeURIComponent(ww)}`);
+    const geldigWw = isMarshall ? marshallWw : ww;
+    const res = await fetch(`/api/deelnemers?wachtwoord=${encodeURIComponent(geldigWw)}`);
     if (res.ok) setDeelnemers(await res.json());
   }
 

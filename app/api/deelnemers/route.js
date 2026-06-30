@@ -28,7 +28,16 @@ export async function GET(request) {
   const wachtwoord = decodeURIComponent(searchParams.get('wachtwoord') || '');
 
   const { data: stats } = await supabase.from('stats').select('wachtwoord').eq('id', 1).single();
-  if (!wachtwoord || wachtwoord !== stats?.wachtwoord) {
+  const isAdmin = wachtwoord && wachtwoord === stats?.wachtwoord;
+
+  // Controleer ook of het een marshall wachtwoord is
+  let isMarshall = false;
+  if (!isAdmin && wachtwoord) {
+    const { data: marshall } = await supabase.from('marshalls').select('id').eq('wachtwoord', wachtwoord).single();
+    isMarshall = !!marshall;
+  }
+
+  if (!isAdmin && !isMarshall) {
     return Response.json({ error: 'Ongeldig wachtwoord' }, { status: 401 });
   }
 
