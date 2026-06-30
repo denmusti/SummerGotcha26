@@ -673,16 +673,39 @@ export default function AdminPage() {
             <Btn onClick={switchViaMarshall} disabled={bezig||!sw1||!sw2||!marshallNaam.trim()} kleur={OR}>🔀 Wissel doelwitten</Btn>
           </Vak>
 
-          <Vak titel="📋 Huidige koppelingen">
+          <Vak titel="📋 Huidige koppelingen - volgorde ketting">
             {actief.filter(d=>d.doelwit).length===0
               ? <div style={{ color:'#ffffff33', fontStyle:'italic', textAlign:'center', padding:20 }}>Nog geen loting</div>
-              : actief.map(d=>(
-              <div key={d.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 0', borderBottom:'1px solid #ffffff11', flexWrap:'wrap' }}>
-                <div style={{ color:WIT, minWidth:180, fontSize:14 }}>#{d.nummer} {d.voornaam} {d.familienaam}</div>
-                <div style={{ color:AC }}>→</div>
-                <div style={{ color:RD, fontSize:14 }}>{d.doelwit?`${d.doelwit.voornaam} ${d.doelwit.familienaam}`:<span style={{ color:'#ffffff33', fontStyle:'italic' }}>geen</span>}</div>
-              </div>
-            ))}
+              : (() => {
+                  // Bouw de ketting op door de volgorde te volgen
+                  const metDoelwit = actief.filter(d=>d.doelwit);
+                  if (metDoelwit.length === 0) return null;
+                  const doelwitMap = {};
+                  metDoelwit.forEach(d => { doelwitMap[d.id] = d; });
+                  // Zoek startpunt: de eerste in de ketting
+                  const doelwitIds = new Set(metDoelwit.map(d=>d.doelwit.id));
+                  const start = metDoelwit.find(d=>!doelwitIds.has(d.id)) || metDoelwit[0];
+                  // Volg de ketting
+                  const geordend = [];
+                  let huidig = start;
+                  const bezocht = new Set();
+                  while (huidig && !bezocht.has(huidig.id)) {
+                    geordend.push(huidig);
+                    bezocht.add(huidig.id);
+                    huidig = doelwitMap[huidig.doelwit?.id];
+                  }
+                  // Voeg eventuele overgebleven deelnemers toe (buiten ketting)
+                  metDoelwit.forEach(d => { if (!bezocht.has(d.id)) geordend.push(d); });
+                  return geordend.map((d,i) => (
+                    <div key={d.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 0', borderBottom:'1px solid #ffffff11', flexWrap:'wrap' }}>
+                      <div style={{ color:'#ffffff44', fontSize:12, minWidth:20 }}>{i+1}</div>
+                      <div style={{ color:WIT, minWidth:180, fontSize:14 }}>#{d.nummer} {d.voornaam} {d.familienaam}</div>
+                      <div style={{ color:AC }}>→</div>
+                      <div style={{ color:RD, fontSize:14 }}>{d.doelwit?`${d.doelwit.voornaam} ${d.doelwit.familienaam}`:<span style={{ color:'#ffffff33', fontStyle:'italic' }}>geen</span>}</div>
+                    </div>
+                  ));
+                })()
+            }
           </Vak>
         </>}
 
