@@ -531,7 +531,6 @@ export default function AdminPage() {
             </Vak>
           )}
 
-  </Vak>
 
           <Vak titel="🔧 Marshall aanpassing - doelwitten wisselen (max. 3 per marshall)">
             <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
