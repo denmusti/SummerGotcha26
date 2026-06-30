@@ -19,6 +19,7 @@ export async function GET() {
 
   return Response.json({
     totaalDeelnemers: publiekeStats.totaal_deelnemers,
+    marshallTelefoons: stats.marshall_telefoons || [],
     levenden: publiekeStats.levenden,
     topschutterAantal: publiekeStats.topschutter_aantal,
     startDatum: publiekeStats.start_datum,
@@ -79,6 +80,7 @@ export async function POST(request) {
     if (body.topschutterAantal !== undefined) statsUpdate.topschutter_aantal = body.topschutterAantal;
     if (body.startDatum !== undefined) statsUpdate.start_datum = body.startDatum;
     if (body.eindDatum !== undefined) statsUpdate.eind_datum = body.eindDatum;
+    if (body.marshallTelefoons !== undefined) statsUpdate.marshall_telefoons = body.marshallTelefoons;
 
     if (Object.keys(statsUpdate).length > 0) {
       statsUpdate.updated_at = new Date().toISOString();

@@ -25,7 +25,7 @@ async function updateStats(supabase) {
 export async function GET(request) {
   const supabase = getSupabaseServer();
   const { searchParams } = new URL(request.url);
-  const wachtwoord = searchParams.get('wachtwoord');
+  const wachtwoord = decodeURIComponent(searchParams.get('wachtwoord') || '');
 
   const { data: stats } = await supabase.from('stats').select('wachtwoord').eq('id', 1).single();
   if (!wachtwoord || wachtwoord !== stats?.wachtwoord) {
@@ -195,8 +195,49 @@ export async function POST(request) {
     const tekst = omschrijving || `Een deelnemer werd geëlimineerd`;
     await supabase.from('tijdlijn').insert({ tekst });
 
+    // WhatsApp notificaties (async, niet blokkeren)
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : 'http://localhost:3000';
+
+    const schutterNaam = schutters?.length > 0
+      ? `${schutters[0].voornaam} ${schutters[0].familienaam}`
+      : 'Onbekend';
+    const slachtofferNaam = `${slachtoffer.voornaam} ${slachtoffer.familienaam}`;
+
+    // Haal nieuw doelwit op
+    let nieuwDoelwitNaam = 'geen';
+    if (schutters?.length > 0 && slachtoffer.doelwit_id) {
+      const { data: nd } = await supabase
+        .from('deelnemers').select('voornaam, familienaam').eq('id', slachtoffer.doelwit_id).single();
+      if (nd) nieuwDoelwitNaam = `${nd.voornaam} ${nd.familienaam}`;
+    }
+
+    fetch(`${baseUrl}/api/notificaties`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        schutter: schutterNaam,
+        slachtoffer: slachtofferNaam,
+        nieuwDoelwit: nieuwDoelwitNaam,
+        tijdstip: new Date().toISOString()
+      })
+    }).catch(e => console.error('Notificatie fout:', e));
+
     await updateStats(supabase);
     return Response.json({ success: true });
+  }
+
+  // ── Tellers herberekenen ─────────────────────────────
+  if (actie === 'herstelTellers') {
+    const { data: alle } = await supabase.from('deelnemers').select('id');
+    const { data: levenden } = await supabase.from('deelnemers').select('id').eq('status', 'actief');
+    await supabase.from('stats').update({
+      totaal_deelnemers: alle?.length || 0,
+      levenden: levenden?.length || 0,
+      updated_at: new Date().toISOString()
+    }).eq('id', 1);
+    return Response.json({ success: true, totaal: alle?.length || 0, levenden: levenden?.length || 0 });
   }
 
   return Response.json({ error: 'Onbekende actie' }, { status: 400 });

@@ -71,6 +71,11 @@ export default function AdminPage() {
   const [killcodeInput, setKillcodeInput] = useState('');
   const [killcodeResult, setKillcodeResult] = useState(null);
 
+  // WhatsApp
+  const [waMarshalls, setWaMarshalls] = useState(['']);
+  const [waBericht, setWaBericht] = useState('');
+  const [waBezig, setWaBezig] = useState(false);
+
   // Admin preview
   const [previewDeelnemer, setPreviewDeelnemer] = useState(null);
 
@@ -91,15 +96,30 @@ export default function AdminPage() {
   }
 
   async function laadDeelnemers() {
-    const res = await fetch(`/api/deelnemers?wachtwoord=${ww}`);
+    const res = await fetch(`/api/deelnemers?wachtwoord=${encodeURIComponent(ww)}`);
     if (res.ok) setDeelnemers(await res.json());
   }
 
   async function login() {
     setBezig(true); setLoginFout('');
-    const { res } = await api('/api/data', { totaalDeelnemers:-1 });
+    // Gebruik GET met wachtwoord check — schrijft NOOIT naar de database
+    const res = await fetch(`/api/check-wachtwoord?wachtwoord=${encodeURIComponent(ww)}`);
     if (res.status === 401) setLoginFout('❌ Ongeldig wachtwoord');
-    else { setIngelogd(true); await laadData(); await laadDeelnemers(); }
+    else {
+      setIngelogd(true);
+      await laadData();
+      await laadDeelnemers();
+      const statsJson = await (await fetch('/api/data')).json();
+      if (statsJson.marshallTelefoons?.length) setWaMarshalls(statsJson.marshallTelefoons);
+    }
+    setBezig(false);
+  }
+
+  async function herstelTellers() {
+    // Herbereken tellers op basis van werkelijke data in de database
+    setBezig(true);
+    const { res } = await api('/api/deelnemers', { actie:'herstelTellers' });
+    if (res.ok) { toonMelding('✅ Tellers hersteld!'); await laadData(); await laadDeelnemers(); }
     setBezig(false);
   }
 
@@ -220,6 +240,30 @@ export default function AdminPage() {
     setBezig(false);
   }
 
+  async function slaWaOp() {
+    setWaBezig(true);
+    const geldigeNummers = waMarshalls.filter(n => n.trim());
+    const { res } = await api('/api/data', { marshallTelefoons: geldigeNummers });
+    if (res.ok) toonMelding('✅ Marshall nummers opgeslagen!');
+    else toonMelding('❌ Fout bij opslaan', 'fout');
+    setWaBezig(false);
+  }
+
+  async function testWaBericht() {
+    if (!waBericht.trim()) return;
+    setWaBezig(true);
+    const { res, json } = await api('/api/notificaties', {
+      schutter: 'Test Schutter',
+      slachtoffer: 'Test Slachtoffer',
+      nieuwDoelwit: 'Test Doelwit',
+      tijdstip: new Date().toISOString(),
+      testBericht: waBericht
+    });
+    if (res.ok) toonMelding(`✅ Test verzonden! Deelnemers: ${json.deelnemers?.verzonden || 0}, Marshalls: ${json.marshalls?.verzonden || 0}`);
+    else toonMelding(`❌ ${json.error || 'Fout'}`, 'fout');
+    setWaBezig(false);
+  }
+
   async function laadAdminPreview() {
     setBezig(true);
     const res = await fetch('/api/mijn-doelwit', {
@@ -288,7 +332,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div style={{ borderBottom:'1px solid #ffffff22', display:'flex', paddingLeft:16, gap:0, overflowX:'auto' }}>
-        {[['stats','📊 Stats'],['deelnemers',`👥 Deelnemers (${deelnemers.length})`],['loting','🎯 Loting'],['eliminaties','💀 Eliminaties'],['preview','🔍 Preview']].map(([id,label]) =>
+        {[['stats','📊 Stats'],['deelnemers',`👥 Deelnemers (${deelnemers.length})`],['loting','🎯 Loting'],['eliminaties','💀 Eliminaties'],['preview','🔍 Preview'],['whatsapp','📱 WhatsApp']].map(([id,label]) =>
           <Tab key={id} label={label} actief={tab===id} onClick={()=>setTab(id)} />
         )}
       </div>
@@ -304,9 +348,15 @@ export default function AdminPage() {
               <Inp label="Topschutter (# kills)" type="number" value={topschutter} onChange={setTopschutter} min={0} />
             </div>
             <Btn onClick={slaStatsOp} disabled={bezig} kleur={GR}>💾 Opslaan</Btn>
+            <span style={{ marginLeft:12 }}>
+              <Btn onClick={herstelTellers} disabled={bezig} kleur={OR} klein>🔄 Herbereken tellers</Btn>
+            </span>
           </Vak>
-          <Vak titel="💧 Tijdlijn" kleur={RD}>
-            <Inp label="Nieuwe eliminatie" value={nieuweElim} onChange={setNieuweElim} placeholder="Omschrijving..." />
+          <Vak titel="💧 Tijdlijn — manuele berichten" kleur={RD}>
+            <p style={{ color:'#ffffff55', fontSize:12, marginTop:0, marginBottom:12 }}>
+              Voeg hier manueel een bericht toe aan de publieke tijdlijn (bv. bij eliminaties zonder killcode). Automatische eliminaties via het tabblad 💀 verschijnen hier ook.
+            </p>
+            <Inp label="Bericht voor de publieke tijdlijn" value={nieuweElim} onChange={setNieuweElim} placeholder="bv. Een deelnemer werd geraakt aan het station..." />
             <div style={{ marginBottom:20 }}><Btn onClick={voegElimToe} disabled={bezig||!nieuweElim.trim()} kleur={RD}>💀 Toevoegen</Btn></div>
             {data?.tijdlijn?.map(item => (
               <div key={item.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid #ffffff11' }}>
@@ -480,6 +530,71 @@ export default function AdminPage() {
             </Sel>
             <Inp label="Omschrijving (optioneel)" value={elimTekst} onChange={setElimTekst} placeholder="bv. Betwist geval beslecht door marshall" />
             <Btn onClick={()=>bevestigElim(Number(elimD), false)} disabled={bezig||!elimD} kleur={RD}>💀 Elimineer</Btn>
+          </Vak>
+        </>}
+
+        {/* ── WHATSAPP ── */}
+        {tab==='whatsapp' && <>
+          <Vak titel="📱 WhatsApp instellingen">
+            <div style={{ background:'#0a162888', borderRadius:12, padding:16, marginBottom:20, border:'1px solid #ffffff22' }}>
+              <p style={{ color:'#ffffff88', fontSize:13, margin:'0 0 8px' }}>
+                <strong style={{color:GD}}>Vereiste omgevingsvariabelen in Vercel:</strong>
+              </p>
+              <code style={{ display:'block', background:'#000000aa', padding:12, borderRadius:8, fontSize:12, color:AC, lineHeight:2 }}>
+                WA_PHONE_NUMBER_ID=jouw_phone_number_id<br/>
+                WA_ACCESS_TOKEN=jouw_access_token
+              </code>
+              <p style={{ color:'#ffffff55', fontSize:12, margin:'12px 0 0' }}>
+                Te vinden op: developers.facebook.com → jouw app → WhatsApp → API Setup
+              </p>
+            </div>
+
+            <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
+              <strong style={{color:WIT}}>Vereiste message templates</strong> (aanmaken via Meta Business Suite):
+            </p>
+            <div style={{ background:'#0a162888', borderRadius:12, padding:16, marginBottom:20, fontSize:13 }}>
+              <div style={{ marginBottom:12 }}>
+                <div style={{ color:AC, fontWeight:'bold', marginBottom:4 }}>Template 1: <code>gotcha_kill_publiek</code></div>
+                <div style={{ color:'#ffffff88', background:'#000000aa', padding:10, borderRadius:8, fontStyle:'italic' }}>
+                  💀 Er is een nieuwe kill! Er zijn nog {"{{1}}"} spelers actief. Volg het spel op: summer-gotcha26.vercel.app
+                </div>
+              </div>
+              <div>
+                <div style={{ color:RD, fontWeight:'bold', marginBottom:4 }}>Template 2: <code>gotcha_kill_marshall</code></div>
+                <div style={{ color:'#ffffff88', background:'#000000aa', padding:10, borderRadius:8, fontStyle:'italic' }}>
+                  🎯 Kill geregistreerd! Slachtoffer: {"{{1}}"} — Schutter: {"{{2}}"} — Nieuw doelwit schutter: {"{{3}}"} — Tijdstip: {"{{4}}"}
+                </div>
+              </div>
+            </div>
+          </Vak>
+
+          <Vak titel="📞 Marshall telefoonnummers" kleur={GR}>
+            <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
+              Bij elke kill krijgen deze nummers een gedetailleerd bericht. Formaat: +32471112233
+            </p>
+            {waMarshalls.map((nr, i) => (
+              <div key={i} style={{ display:'flex', gap:8, marginBottom:8 }}>
+                <input value={nr} onChange={e => { const n=[...waMarshalls]; n[i]=e.target.value; setWaMarshalls(n); }}
+                  placeholder="+32471112233"
+                  style={{ ...inp, flex:1 }} />
+                <button onClick={() => setWaMarshalls(waMarshalls.filter((_,j)=>j!==i))}
+                  style={{ background:'none', border:`1px solid ${RD}`, color:RD, borderRadius:8, padding:'0 12px', cursor:'pointer' }}>✕</button>
+              </div>
+            ))}
+            <div style={{ display:'flex', gap:12, marginTop:8 }}>
+              <Btn onClick={() => setWaMarshalls([...waMarshalls, ''])} kleur={BM} klein>+ Nummer toevoegen</Btn>
+              <Btn onClick={slaWaOp} disabled={waBezig} kleur={GR}>💾 Opslaan</Btn>
+            </div>
+          </Vak>
+
+          <Vak titel="🧪 Test notificatie" kleur={OR}>
+            <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
+              Stuur een test kill-bericht om te controleren of alles werkt.
+            </p>
+            <Btn onClick={testWaBericht} disabled={waBezig} kleur={OR}>📤 Stuur testbericht</Btn>
+            <p style={{ color:'#ffffff33', fontSize:11, marginTop:12 }}>
+              ⚠️ Dit stuurt een echt bericht naar alle deelnemers en marshalls met testdata.
+            </p>
           </Vak>
         </>}
 
