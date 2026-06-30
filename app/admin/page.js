@@ -488,7 +488,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div style={{ borderBottom:'1px solid #ffffff22', display:'flex', paddingLeft:16, gap:0, overflowX:'auto' }}>
-        {[['stats','📊 Stats'],['deelnemers',`👥 Deelnemers (${deelnemers.length})`],['loting','🎯 Loting'],['eliminaties','💀 Eliminaties'],['preview','🔍 Preview'],isAdmin&&['whatsapp','📱 WhatsApp'],isAdmin&&['marshalls','👮 Marshalls']].filter(Boolean).map(([id,label]) =>
+        {[['stats','📊 Stats'],['deelnemers',`👥 Deelnemers (${deelnemers.length})`],['loting','🎯 Loting'],['eliminaties','💀 Eliminaties'],isAdmin&&['preview','🔍 Preview'],isAdmin&&['whatsapp','📱 WhatsApp'],isAdmin&&['marshalls','👮 Marshalls']].filter(Boolean).map(([id,label]) =>
           <Tab key={id} label={label} actief={tab===id} onClick={()=>setTab(id)} />
         )}
       </div>
@@ -496,7 +496,7 @@ export default function AdminPage() {
       <div style={{ maxWidth:820, margin:'0 auto', padding:'24px 16px' }}>
 
         {/* ── STATS ── */}
-        {tab==='stats' && isAdmin && <>
+        {tab==='stats' && <>
           <Vak titel="📊 Statistieken bijwerken">
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12 }}>
               <Inp label="Totaal ingeschreven" type="number" value={totaal} onChange={setTotaal} min={0} />
@@ -508,7 +508,7 @@ export default function AdminPage() {
               <Btn onClick={herstelTellers} disabled={bezig} kleur={OR} klein>🔄 Herbereken tellers</Btn>
             </span>
           </Vak>
-          <Vak titel="💧 Tijdlijn - manuele berichten" kleur={RD}>
+          {isAdmin && <Vak titel="💧 Tijdlijn - manuele berichten" kleur={RD}>
             <p style={{ color:'#ffffff55', fontSize:12, marginTop:0, marginBottom:12 }}>
               Voeg hier manueel een bericht toe aan de publieke tijdlijn (bv. bij eliminaties zonder killcode). Automatische eliminaties via het tabblad 💀 verschijnen hier ook.
             </p>
@@ -523,11 +523,11 @@ export default function AdminPage() {
                 <button onClick={()=>verwijderElim(item.id)} style={{ background:'none', border:`1px solid ${RD}`, color:RD, borderRadius:6, padding:'4px 10px', cursor:'pointer', fontSize:12 }}>✕</button>
               </div>
             ))}
-          </Vak>
+          </Vak>}
         </>}
 
         {/* ── DEELNEMERS ── */}
-        {tab==='deelnemers' && isAdmin && <>
+        {tab==='deelnemers' && <>
           <Vak titel="➕ Nieuwe deelnemer" kleur={GR}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
               <Inp label="Voornaam ★" value={nVn} onChange={setNVn} />
@@ -829,7 +829,7 @@ export default function AdminPage() {
         </>}
 
         {/* ── PREVIEW ── */}
-        {tab==='preview' && <>
+        {tab==='preview' && isAdmin && <>
           <Vak titel="🔍 Admin preview - alle doelwitpagina's">
             <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>Bekijk hoe de doelwitpagina eruitziet voor elke deelnemer, ook vóór de start van het spel.</p>
             {!previewDeelnemer
