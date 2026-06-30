@@ -4,9 +4,24 @@ import { getSupabaseServer } from '../../../lib/supabase';
 export async function GET() {
   const supabase = getSupabaseServer();
 
-  const [{ data: stats, error: statsErr }, { data: tijdlijn, error: tijdlijnErr }] = await Promise.all([
+  // Haal alles parallel op — tellers live berekend vanuit deelnemers tabel
+  const [
+    { data: stats, error: statsErr },
+    { data: tijdlijn, error: tijdlijnErr },
+    { data: alleDeelnemers },
+    { data: levendeDeelnemers },
+    { data: topKills },
+  ] = await Promise.all([
     supabase.from('stats').select('*').eq('id', 1).single(),
     supabase.from('tijdlijn').select('*').order('tijdstip', { ascending: false }).limit(50),
+    supabase.from('deelnemers').select('id'),
+    supabase.from('deelnemers').select('id').eq('status', 'actief'),
+    supabase.from('kills').select('schutter_id').then(({ data }) => {
+      if (!data) return { data: 0 };
+      const teller = {};
+      data.forEach(k => { teller[k.schutter_id] = (teller[k.schutter_id] || 0) + 1; });
+      return { data: Math.max(0, ...Object.values(teller), 0) };
+    }),
   ]);
 
   if (statsErr || tijdlijnErr) {
@@ -14,16 +29,24 @@ export async function GET() {
     return Response.json({ error: 'Databasefout' }, { status: 500 });
   }
 
-  // Wachtwoord nooit naar de browser sturen
-  const { wachtwoord, updated_at, id, ...publiekeStats } = stats;
+  const totaal = alleDeelnemers?.length || 0;
+  const levenden = levendeDeelnemers?.length || 0;
+  const topschutter = topKills?.data || 0;
+
+  // Sync tellers terug naar stats tabel (stille achtergrondtaak)
+  supabase.from('stats').update({
+    totaal_deelnemers: totaal,
+    levenden: levenden,
+    topschutter_aantal: topschutter,
+  }).eq('id', 1).then(() => {}).catch(() => {});
 
   return Response.json({
-    totaalDeelnemers: publiekeStats.totaal_deelnemers,
+    totaalDeelnemers: totaal,
     marshallTelefoons: stats.marshall_telefoons || [],
-    levenden: publiekeStats.levenden,
-    topschutterAantal: publiekeStats.topschutter_aantal,
-    startDatum: publiekeStats.start_datum,
-    eindDatum: publiekeStats.eind_datum,
+    levenden: levenden,
+    topschutterAantal: topschutter,
+    startDatum: stats.start_datum,
+    eindDatum: stats.eind_datum,
     tijdlijn: tijdlijn.map(t => ({
       id: t.id,
       tijdstip: t.tijdstip,
