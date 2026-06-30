@@ -63,7 +63,7 @@ export default function AdminPage() {
   const [aanpD, setAanpD] = useState('');
   const [sw1, setSw1] = useState('');
   const [sw2, setSw2] = useState('');
-  const [testLoting, setTestLoting] = useState(false);
+  const [testLotingPreview, setTestLotingPreview] = useState(null);
 
   // Eliminaties
   const [elimD, setElimD] = useState('');
@@ -191,7 +191,16 @@ export default function AdminPage() {
     if (!confirm(`${isTest?'TEST-loting':'Loting'} genereren voor ${actief} deelnemers?${isTest?' (testmodus — overschrijft huidige koppeling niet)':' (overschrijft huidige koppeling!)'}`)) return;
     setBezig(true);
     const { res, json } = await api('/api/loting', { actie:'genereer', testModus:isTest });
-    if (res.ok) { toonMelding(`✅ ${isTest?'Test-loting':'Loting'} gegenereerd voor ${json.aantalDeelnemers} deelnemers!`); if (!isTest) await laadDeelnemers(); }
+    if (res.ok) {
+      if (isTest) {
+        setTestLotingPreview(json.preview);
+        toonMelding(`✅ Test-loting gegenereerd voor ${json.aantalDeelnemers} deelnemers — zie preview hieronder.`);
+      } else {
+        setTestLotingPreview(null);
+        toonMelding(`✅ Loting gegenereerd voor ${json.aantalDeelnemers} deelnemers!`);
+        await laadDeelnemers();
+      }
+    }
     else toonMelding(`❌ ${json.error}`, 'fout');
     setBezig(false);
   }
@@ -465,6 +474,24 @@ export default function AdminPage() {
               </div>
             )}
           </Vak>
+
+          {testLotingPreview && (
+            <Vak titel="🧪 Test-loting preview (niet opgeslagen)" kleur={OR}>
+              <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
+                Dit is een voorbeeldkoppeling — nog niet actief. Klik op "Genereer loting" om de echte loting te starten.
+              </p>
+              <div style={{ marginBottom:12 }}>
+                <Btn onClick={()=>setTestLotingPreview(null)} kleur="#333" klein>✕ Sluit preview</Btn>
+              </div>
+              {testLotingPreview.map((r, i) => (
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 0', borderBottom:'1px solid #ffffff11', flexWrap:'wrap' }}>
+                  <div style={{ color:WIT, minWidth:180, fontSize:14 }}>{r.schutter_naam}</div>
+                  <div style={{ color:AC }}>→</div>
+                  <div style={{ color:OR, fontSize:14 }}>{r.doelwit_naam}</div>
+                </div>
+              ))}
+            </Vak>
+          )}
 
           <Vak titel="🔀 Deelnemers switchen" kleur={OR}>
             <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>Wissel de doelwitten van 2 deelnemers als de koppeling te makkelijk is.</p>

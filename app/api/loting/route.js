@@ -56,8 +56,17 @@ export async function POST(request) {
     // Reset alle doelwitten eerst (niet bij testmodus)
     if (!testModus) await supabase.from('deelnemers').update({ doelwit_id: null }).eq('status', 'actief');
 
-    // Sla koppeling op (niet bij testmodus)
-    if (testModus) return Response.json({ success: true, aantalDeelnemers: deelnemers.length, testModus: true });
+    // Testmodus: stuur koppeling terug zonder op te slaan
+    if (testModus) {
+      const preview = deelnemers.map((schutter, i) => ({
+        schutter_id: schutter.id,
+        schutter_naam: `${schutter.voornaam} ${schutter.familienaam}`,
+        doelwit_naam: `${deelnemers[doelwit_indices[i]].voornaam} ${deelnemers[doelwit_indices[i]].familienaam}`,
+      }));
+      return Response.json({ success: true, aantalDeelnemers: deelnemers.length, testModus: true, preview });
+    }
+
+    // Sla echte koppeling op
     for (let i = 0; i < deelnemers.length; i++) {
       const schutter = deelnemers[i];
       const doelwit = deelnemers[doelwit_indices[i]];
