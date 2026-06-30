@@ -408,7 +408,7 @@ export default function AdminPage() {
               <Btn onClick={herstelTellers} disabled={bezig} kleur={OR} klein>🔄 Herbereken tellers</Btn>
             </span>
           </Vak>
-          <Vak titel="💧 Tijdlijn — manuele berichten" kleur={RD}>
+          <Vak titel="💧 Tijdlijn - manuele berichten" kleur={RD}>
             <p style={{ color:'#ffffff55', fontSize:12, marginTop:0, marginBottom:12 }}>
               Voeg hier manueel een bericht toe aan de publieke tijdlijn (bv. bij eliminaties zonder killcode). Automatische eliminaties via het tabblad 💀 verschijnen hier ook.
             </p>
@@ -533,7 +533,7 @@ export default function AdminPage() {
 
   </Vak>
 
-          <Vak titel="🔧 Marshall aanpassing — doelwitten wisselen (max. 3 per marshall)">
+          <Vak titel="🔧 Marshall aanpassing - doelwitten wisselen (max. 3 per marshall)">
             <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
               Wissel de doelwitten van 2 deelnemers. De ketting blijft gesloten. Elke marshall mag dit maximaal 3 keer doen.
             </p>
@@ -699,7 +699,7 @@ export default function AdminPage() {
 
         {/* ── PREVIEW ── */}
         {tab==='preview' && <>
-          <Vak titel="🔍 Admin preview — alle doelwitpagina's">
+          <Vak titel="🔍 Admin preview - alle doelwitpagina's">
             <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>Bekijk hoe de doelwitpagina eruitziet voor elke deelnemer, ook vóór de start van het spel.</p>
             {!previewDeelnemer
               ? <Btn onClick={laadAdminPreview} disabled={bezig} kleur={BM}>🔍 Laad preview</Btn>
