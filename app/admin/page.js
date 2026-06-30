@@ -30,6 +30,11 @@ function Tab({ label, actief, onClick }) {
 export default function AdminPage() {
   const [ingelogd, setIngelogd] = useState(false);
   const [ww, setWw] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isMarshall, setIsMarshall] = useState(false);
+  const [marshallInfo, setMarshallInfo] = useState(null); // { id, naam, aanpassingen }
+  const [marshallWw, setMarshallWw] = useState('');
+  const [loginModus, setLoginModus] = useState('keuze'); // keuze | admin | marshall
   const [loginFout, setLoginFout] = useState('');
   const [bezig, setBezig] = useState(false);
   const [melding, setMelding] = useState({ t:'', type:'ok' });
@@ -71,6 +76,11 @@ export default function AdminPage() {
   const [killcodeInput, setKillcodeInput] = useState('');
   const [killcodeResult, setKillcodeResult] = useState(null);
 
+  // Marshalls beheer
+  const [marshallLijst, setMarshallLijst] = useState([]);
+  const [nieuwMarshallNaam, setNieuwMarshallNaam] = useState('');
+  const [nieuwMarshallWw, setNieuwMarshallWw] = useState('');
+
   // WhatsApp
   const [waMarshalls, setWaMarshalls] = useState(['']);
   const [waBericht, setWaBericht] = useState('');
@@ -89,6 +99,11 @@ export default function AdminPage() {
     return { res, json: await res.json() };
   }
 
+  async function laadMarshalls() {
+    const res = await fetch(`/api/marshalls?lijst=true&adminWw=${encodeURIComponent(ww)}`);
+    if (res.ok) setMarshallLijst(await res.json());
+  }
+
   async function laadData() {
     const res = await fetch('/api/data');
     const json = await res.json();
@@ -100,17 +115,29 @@ export default function AdminPage() {
     if (res.ok) setDeelnemers(await res.json());
   }
 
-  async function login() {
+  async function loginAdmin() {
     setBezig(true); setLoginFout('');
-    // Gebruik GET met wachtwoord check — schrijft NOOIT naar de database
     const res = await fetch(`/api/check-wachtwoord?wachtwoord=${encodeURIComponent(ww)}`);
     if (res.status === 401) setLoginFout('❌ Ongeldig wachtwoord');
     else {
-      setIngelogd(true);
-      await laadData();
-      await laadDeelnemers();
+      setIsAdmin(true); setIngelogd(true);
+      await laadData(); await laadDeelnemers(); await laadMarshalls();
       const statsJson = await (await fetch('/api/data')).json();
       if (statsJson.marshallTelefoons?.length) setWaMarshalls(statsJson.marshallTelefoons);
+    }
+    setBezig(false);
+  }
+
+  async function loginMarshall() {
+    setBezig(true); setLoginFout('');
+    const res = await fetch(`/api/marshalls?wachtwoord=${encodeURIComponent(marshallWw)}`);
+    const json = await res.json();
+    if (res.status === 401) setLoginFout('❌ Ongeldig wachtwoord');
+    else {
+      setIsMarshall(true); setIsAdmin(false); setIngelogd(true);
+      setMarshallInfo(json.marshall);
+      setMarshallNaam(json.marshall.naam);
+      await laadData(); await laadDeelnemers();
     }
     setBezig(false);
   }
@@ -217,10 +244,13 @@ export default function AdminPage() {
     const gebruikt = data?.marshallAanpassingen?.[marshallNaam] || 0;
     if (gebruikt >= 3) { toonMelding('❌ Limiet van 3 aanpassingen bereikt voor deze marshall', 'fout'); return; }
     setBezig(true);
-    const { res, json } = await api('/api/loting', { actie:'aanpassing', schutter_id:Number(sw1), nieuw_doelwit_id:Number(sw2), marshall_naam:marshallNaam });
+    const mid = isMarshall ? marshallInfo?.id : marshallLijst.find(m=>m.naam===marshallNaam)?.id;
+    if (!mid) { toonMelding('❌ Marshall niet gevonden', 'fout'); setBezig(false); return; }
+    const { res, json } = await api('/api/loting', { actie:'aanpassing', schutter_id:Number(sw1), nieuw_doelwit_id:Number(sw2), marshall_id: mid });
     if (res.ok) {
-      toonMelding(`✅ Doelwitten gewisseld. Nog ${json.aanpassingenResterend} aanpassing(en) over voor ${marshallNaam}.`);
-      await laadDeelnemers(); await laadData();
+      toonMelding(`✅ Doelwitten gewisseld. Nog ${json.aanpassingenResterend} aanpassing(en) over.`);
+      await laadDeelnemers(); await laadData(); await laadMarshalls();
+      if (isMarshall) setMarshallInfo(prev => ({ ...prev, aanpassingen: prev.aanpassingen + 1 }));
       setSw1(''); setSw2('');
     } else toonMelding(`❌ ${json.error}`, 'fout');
     setBezig(false);
@@ -242,10 +272,13 @@ export default function AdminPage() {
     const gebruikt = data?.marshallAanpassingen?.[marshallNaam] || 0;
     if (gebruikt >= 3) { toonMelding('❌ Limiet van 3 aanpassingen bereikt voor deze marshall', 'fout'); return; }
     setBezig(true);
-    const { res, json } = await api('/api/loting', { actie:'aanpassing', schutter_id:Number(sw1), nieuw_doelwit_id:Number(sw2), marshall_naam:marshallNaam });
+    const mid = isMarshall ? marshallInfo?.id : marshallLijst.find(m=>m.naam===marshallNaam)?.id;
+    if (!mid) { toonMelding('❌ Marshall niet gevonden', 'fout'); setBezig(false); return; }
+    const { res, json } = await api('/api/loting', { actie:'aanpassing', schutter_id:Number(sw1), nieuw_doelwit_id:Number(sw2), marshall_id: mid });
     if (res.ok) {
-      toonMelding(`✅ Doelwitten gewisseld. Nog ${json.aanpassingenResterend} aanpassing(en) over voor ${marshallNaam}.`);
-      await laadDeelnemers(); await laadData();
+      toonMelding(`✅ Doelwitten gewisseld. Nog ${json.aanpassingenResterend} aanpassing(en) over.`);
+      await laadDeelnemers(); await laadData(); await laadMarshalls();
+      if (isMarshall) setMarshallInfo(prev => ({ ...prev, aanpassingen: prev.aanpassingen + 1 }));
       setSw1(''); setSw2('');
     } else toonMelding(`❌ ${json.error}`, 'fout');
     setBezig(false);
@@ -286,6 +319,44 @@ export default function AdminPage() {
       setElimD(''); setElimTekst(''); setKillcodeResult(null); setKillcodeInput('');
       await laadDeelnemers(); await laadData();
     }
+    setBezig(false);
+  }
+
+  async function voegMarshallToe() {
+    if (!nieuwMarshallNaam.trim() || !nieuwMarshallWw.trim()) {
+      toonMelding('❌ Naam en wachtwoord zijn verplicht', 'fout'); return;
+    }
+    setBezig(true);
+    const res = await fetch('/api/marshalls', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminWachtwoord: ww, actie: 'toevoegen', naam: nieuwMarshallNaam, wachtwoord: nieuwMarshallWw })
+    });
+    if (res.ok) {
+      toonMelding('✅ Marshall toegevoegd!');
+      setNieuwMarshallNaam(''); setNieuwMarshallWw('');
+      await laadMarshalls();
+    } else toonMelding('❌ Fout bij toevoegen', 'fout');
+    setBezig(false);
+  }
+
+  async function verwijderMarshall(id) {
+    if (!confirm('Marshall verwijderen?')) return;
+    setBezig(true);
+    const res = await fetch('/api/marshalls', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminWachtwoord: ww, actie: 'verwijderen', id })
+    });
+    if (res.ok) { toonMelding('✅ Marshall verwijderd'); await laadMarshalls(); }
+    setBezig(false);
+  }
+
+  async function resetMarshallAanpassingen(id, naam) {
+    setBezig(true);
+    const res = await fetch('/api/marshalls', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminWachtwoord: ww, actie: 'resetAanpassingen', id })
+    });
+    if (res.ok) { toonMelding(`✅ Teller van ${naam} gereset`); await laadMarshalls(); }
     setBezig(false);
   }
 
@@ -338,14 +409,40 @@ export default function AdminPage() {
 
   if (!ingelogd) return (
     <div style={{ minHeight:'100vh', background:'linear-gradient(180deg,#0a1628,#0d2040)', display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}>
-      <div style={{ background:`linear-gradient(135deg,${BD}cc,#0a1628)`, border:`2px solid ${AC}`, borderRadius:20, padding:'40px 36px', width:'100%', maxWidth:380, textAlign:'center' }}>
+      <div style={{ background:`linear-gradient(135deg,${BD}cc,#0a1628)`, border:`2px solid ${AC}`, borderRadius:20, padding:'40px 36px', width:'100%', maxWidth:400, textAlign:'center' }}>
         <div style={{ fontSize:48, marginBottom:16 }}>🔒</div>
-        <h2 style={{ color:WIT, margin:'0 0 8px', fontSize:22 }}>Marshall Login</h2>
-        <p style={{ color:'#ffffff55', fontSize:13, margin:'0 0 24px' }}>Summer Gotcha 2026</p>
-        <input type="password" placeholder="Wachtwoord" value={ww} onChange={e=>setWw(e.target.value)} onKeyDown={e=>e.key==='Enter'&&login()}
-          style={{ ...inp, marginBottom:12, border:`1px solid ${loginFout?RD:'#ffffff33'}`, fontSize:15, padding:'12px 16px' }} />
-        {loginFout && <div style={{ color:RD, fontSize:13, marginBottom:12 }}>{loginFout}</div>}
-        <Btn onClick={login} disabled={bezig} kleur={BM}>{bezig?'Bezig...':'🔓 Inloggen'}</Btn>
+        <h2 style={{ color:WIT, margin:'0 0 8px', fontSize:22 }}>Summer Gotcha 2026</h2>
+        <p style={{ color:'#ffffff55', fontSize:13, margin:'0 0 28px' }}>Beheerpagina</p>
+
+        {loginModus === 'keuze' && (
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            <Btn onClick={()=>setLoginModus('admin')} kleur={BM}>⚙️ Inloggen als admin</Btn>
+            <Btn onClick={()=>setLoginModus('marshall')} kleur={OR}>🎯 Inloggen als marshall</Btn>
+          </div>
+        )}
+
+        {loginModus === 'admin' && <>
+          <p style={{ color:AC, fontSize:13, marginBottom:16 }}>⚙️ Admin login</p>
+          <input type="password" placeholder="Admin wachtwoord" value={ww} onChange={e=>setWw(e.target.value)} onKeyDown={e=>e.key==='Enter'&&loginAdmin()}
+            style={{ ...inp, marginBottom:12, border:`1px solid ${loginFout?RD:'#ffffff33'}`, fontSize:15, padding:'12px 16px' }} />
+          {loginFout && <div style={{ color:RD, fontSize:13, marginBottom:12 }}>{loginFout}</div>}
+          <div style={{ display:'flex', gap:12, justifyContent:'center' }}>
+            <Btn onClick={()=>setLoginModus('keuze')} kleur="#333" klein>← Terug</Btn>
+            <Btn onClick={loginAdmin} disabled={bezig} kleur={BM}>{bezig?'Bezig...':'🔓 Inloggen'}</Btn>
+          </div>
+        </>}
+
+        {loginModus === 'marshall' && <>
+          <p style={{ color:OR, fontSize:13, marginBottom:16 }}>🎯 Marshall login</p>
+          <input type="password" placeholder="Jouw marshall wachtwoord" value={marshallWw} onChange={e=>setMarshallWw(e.target.value)} onKeyDown={e=>e.key==='Enter'&&loginMarshall()}
+            style={{ ...inp, marginBottom:12, border:`1px solid ${loginFout?RD:'#ffffff33'}`, fontSize:15, padding:'12px 16px' }} />
+          {loginFout && <div style={{ color:RD, fontSize:13, marginBottom:12 }}>{loginFout}</div>}
+          <div style={{ display:'flex', gap:12, justifyContent:'center' }}>
+            <Btn onClick={()=>setLoginModus('keuze')} kleur="#333" klein>← Terug</Btn>
+            <Btn onClick={loginMarshall} disabled={bezig} kleur={OR}>{bezig?'Bezig...':'🔓 Inloggen'}</Btn>
+          </div>
+        </>}
+
         <div style={{ marginTop:24 }}><a href="/" style={{ color:'#ffffff33', fontSize:12, textDecoration:'none' }}>← Publieke pagina</a></div>
       </div>
     </div>
@@ -358,10 +455,11 @@ export default function AdminPage() {
         <div>
           <div style={{ color:OR, fontSize:11, letterSpacing:3, textTransform:'uppercase' }}>Beheerpagina</div>
           <h1 style={{ margin:0, fontSize:20, fontWeight:'bold' }}>⚙️ Summer Gotcha 2026</h1>
+          {isMarshall && <div style={{ color:OR, fontSize:12 }}>Ingelogd als marshall: <strong>{marshallInfo?.naam}</strong> — {3-(marshallInfo?.aanpassingen||0)} aanpassing(en) resterend</div>}
         </div>
         <div style={{ display:'flex', gap:12, alignItems:'center' }}>
           <a href="/" style={{ color:AC, fontSize:13, textDecoration:'none' }}>← Publieke pagina</a>
-          <Btn onClick={()=>setIngelogd(false)} kleur="#333" klein>Uitloggen</Btn>
+          <Btn onClick={()=>{setIngelogd(false);setIsAdmin(false);setIsMarshall(false);setMarshallInfo(null);setLoginModus('keuze');setWw('');setMarshallWw('');}} kleur="#333" klein>Uitloggen</Btn>
         </div>
       </div>
 
@@ -390,7 +488,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div style={{ borderBottom:'1px solid #ffffff22', display:'flex', paddingLeft:16, gap:0, overflowX:'auto' }}>
-        {[['stats','📊 Stats'],['deelnemers',`👥 Deelnemers (${deelnemers.length})`],['loting','🎯 Loting'],['eliminaties','💀 Eliminaties'],['preview','🔍 Preview'],['whatsapp','📱 WhatsApp']].map(([id,label]) =>
+        {[['stats','📊 Stats'],['deelnemers',`👥 Deelnemers (${deelnemers.length})`],['loting','🎯 Loting'],['eliminaties','💀 Eliminaties'],['preview','🔍 Preview'],isAdmin&&['whatsapp','📱 WhatsApp'],isAdmin&&['marshalls','👮 Marshalls']].filter(Boolean).map(([id,label]) =>
           <Tab key={id} label={label} actief={tab===id} onClick={()=>setTab(id)} />
         )}
       </div>
@@ -398,7 +496,7 @@ export default function AdminPage() {
       <div style={{ maxWidth:820, margin:'0 auto', padding:'24px 16px' }}>
 
         {/* ── STATS ── */}
-        {tab==='stats' && <>
+        {tab==='stats' && isAdmin && <>
           <Vak titel="📊 Statistieken bijwerken">
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12 }}>
               <Inp label="Totaal ingeschreven" type="number" value={totaal} onChange={setTotaal} min={0} />
@@ -429,7 +527,7 @@ export default function AdminPage() {
         </>}
 
         {/* ── DEELNEMERS ── */}
-        {tab==='deelnemers' && <>
+        {tab==='deelnemers' && isAdmin && <>
           <Vak titel="➕ Nieuwe deelnemer" kleur={GR}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
               <Inp label="Voornaam ★" value={nVn} onChange={setNVn} />
@@ -498,7 +596,7 @@ export default function AdminPage() {
 
         {/* ── LOTING ── */}
         {tab==='loting' && <>
-          <Vak titel="🎲 Loting genereren" kleur={GD}>
+          {isAdmin && <Vak titel="🎲 Loting genereren" kleur={GD}>
             <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>{actief.length} actieve deelnemers.</p>
             <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:16 }}>
               <Btn onClick={()=>genereerLoting(false)} disabled={bezig||actief.length<3} kleur={GD}>🎲 Genereer loting</Btn>
@@ -513,7 +611,7 @@ export default function AdminPage() {
                 {!lotingStatus.geldig && lotingStatus.fouten.map((f,i)=><div key={i} style={{ color:RD, fontSize:13 }}>• {f}</div>)}
               </div>
             )}
-          </Vak>
+          </Vak>}
 
           {testLotingPreview && (
             <Vak titel="🧪 Test-loting preview (niet opgeslagen)" kleur={OR}>
@@ -539,8 +637,8 @@ export default function AdminPage() {
               Wissel de doelwitten van 2 deelnemers. De ketting blijft gesloten. Elke marshall mag dit maximaal 3 keer doen.
             </p>
             <Inp label="Marshall naam" value={marshallNaam} onChange={setMarshallNaam} />
-            {marshallNaam && (() => {
-              const gebruikt = data?.marshallAanpassingen?.[marshallNaam] || 0;
+            {(marshallNaam || isMarshall) && (() => {
+              const gebruikt = isMarshall ? (marshallInfo?.aanpassingen || 0) : (marshallLijst.find(m=>m.naam===marshallNaam)?.aanpassingen || 0);
               const resterend = 3 - gebruikt;
               return (
                 <div style={{ background: resterend > 0 ? '#1E844922' : '#C0392B22', border: `1px solid ${resterend > 0 ? GR : RD}`, borderRadius: 8, padding: '8px 14px', marginBottom: 16, fontSize: 13 }}>
@@ -695,6 +793,38 @@ export default function AdminPage() {
             <p style={{ color:'#ffffff33', fontSize:11, marginTop:10 }}>
               ⚠️ Dit stuurt een persoonlijk bericht naar alle actieve deelnemers. Doe dit slechts één keer.
             </p>
+          </Vak>
+        </>}
+
+        {/* ── MARSHALLS ── */}
+        {tab==='marshalls' && isAdmin && <>
+          <Vak titel="👮 Marshalls beheren" kleur={OR}>
+            <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>Voeg marshalls toe met een eigen naam en wachtwoord. Elke marshall kan max. 3 doelwitten wisselen.</p>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <Inp label="Naam" value={nieuwMarshallNaam} onChange={setNieuwMarshallNaam} placeholder="bv. Denis" />
+              <Inp label="Wachtwoord" value={nieuwMarshallWw} onChange={setNieuwMarshallWw} placeholder="geheim wachtwoord" />
+            </div>
+            <Btn onClick={voegMarshallToe} disabled={bezig} kleur={GR}>➕ Marshall toevoegen</Btn>
+          </Vak>
+
+          <Vak titel="📋 Overzicht marshalls">
+            {marshallLijst.length === 0
+              ? <div style={{ color:'#ffffff33', fontStyle:'italic', textAlign:'center', padding:20 }}>Nog geen marshalls aangemaakt</div>
+              : marshallLijst.map(m => (
+                <div key={m.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 0', borderBottom:'1px solid #ffffff11', flexWrap:'wrap' }}>
+                  <div style={{ flex:1 }}>
+                    <div style={{ color:WIT, fontWeight:'bold' }}>{m.naam}</div>
+                    <div style={{ marginTop:4 }}>
+                      <span style={{ background: m.aanpassingen < 3 ? '#1E844922' : '#C0392B22', border:`1px solid ${m.aanpassingen < 3 ? GR : RD}`, borderRadius:20, padding:'2px 10px', fontSize:12, color: m.aanpassingen < 3 ? GR : RD }}>
+                        {m.aanpassingen}/3 aanpassingen gebruikt
+                      </span>
+                    </div>
+                  </div>
+                  <Btn onClick={()=>resetMarshallAanpassingen(m.id, m.naam)} kleur={OR} klein>🔄 Reset teller</Btn>
+                  <Btn onClick={()=>verwijderMarshall(m.id)} kleur={RD} klein>✕ Verwijder</Btn>
+                </div>
+              ))
+            }
           </Vak>
         </>}
 

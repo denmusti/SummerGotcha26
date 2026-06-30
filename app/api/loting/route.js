@@ -104,12 +104,16 @@ export async function POST(request) {
       return Response.json({ error: 'Marshall naam is verplicht' }, { status: 400 });
     }
 
-    const { data: statsData } = await supabase.from('stats').select('*').eq('id', 1).single();
-    const aanpassingen = statsData.marshall_aanpassingen || {};
-    const huidigAantal = aanpassingen[marshall_naam] || 0;
+    // Haal marshall op via naam (bij eigen wachtwoord login) of marshall_id
+    const { data: marshallData, error: marshallErr } = await supabase
+      .from('marshalls').select('id, naam, aanpassingen').eq('id', marshall_id).single();
 
-    if (huidigAantal >= 3) {
-      return Response.json({ error: `${marshall_naam} heeft het maximum van 3 aanpassingen bereikt` }, { status: 400 });
+    if (marshallErr || !marshallData) {
+      return Response.json({ error: 'Marshall niet gevonden' }, { status: 404 });
+    }
+
+    if (marshallData.aanpassingen >= 3) {
+      return Response.json({ error: `${marshallData.naam} heeft het maximum van 3 aanpassingen bereikt` }, { status: 400 });
     }
 
     // Haal huidige doelwitten op van beide deelnemers
@@ -129,11 +133,12 @@ export async function POST(request) {
     if (schutterVanD1?.length) await supabase.from('deelnemers').update({ doelwit_id: nieuw_doelwit_id }).eq('id', schutterVanD1[0].id);
     if (schutterVanD2?.length) await supabase.from('deelnemers').update({ doelwit_id: schutter_id }).eq('id', schutterVanD2[0].id);
 
-    // Teller ophogen
-    aanpassingen[marshall_naam] = huidigAantal + 1;
-    await supabase.from('stats').update({ marshall_aanpassingen: aanpassingen }).eq('id', 1);
+    // Teller ophogen in marshalls tabel
+    await supabase.from('marshalls')
+      .update({ aanpassingen: marshallData.aanpassingen + 1 })
+      .eq('id', marshall_id);
 
-    return Response.json({ success: true, aanpassingenResterend: 3 - aanpassingen[marshall_naam] });
+    return Response.json({ success: true, aanpassingenResterend: 3 - (marshallData.aanpassingen + 1) });
   }
 
   // Ketting valideren
