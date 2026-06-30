@@ -49,6 +49,9 @@ export default function AdminPage() {
   const [nAdres, setNAdres] = useState('');
   const [nContact, setNContact] = useState('');
   const [nNotitie, setNNotitie] = useState('');
+  const [nFoto, setNFoto] = useState(null);
+  const [nFotoNaam, setNFotoNaam] = useState('');
+  const nFotoRef = useRef(null);
   const [toonPopup, setToonPopup] = useState(null);
   const [fotoBezig, setFotoBezig] = useState({});
   const fotoRef = useRef({});
@@ -127,8 +130,16 @@ export default function AdminPage() {
     setBezig(true);
     const { res, json } = await api('/api/deelnemers', { actie:'toevoegen', voornaam:nVn.trim(), familienaam:nFn.trim(), adres:nAdres, contact:nContact, notitie:nNotitie });
     if (res.ok) {
+      // Upload foto als die geselecteerd is
+      if (nFoto) {
+        const fd = new FormData();
+        fd.append('wachtwoord', ww);
+        fd.append('deelnemerId', json.deelnemer.id);
+        fd.append('foto', nFoto);
+        await fetch('/api/foto', { method:'POST', body:fd });
+      }
       setToonPopup({ naam:`${nVn} ${nFn}`, toegangscode:json.toegangscode, killcode:json.killcode });
-      setNVn(''); setNFn(''); setNAdres(''); setNContact(''); setNNotitie('');
+      setNVn(''); setNFn(''); setNAdres(''); setNContact(''); setNNotitie(''); setNFoto(null); setNFotoNaam('');
       await laadDeelnemers(); await laadData();
     } else toonMelding(`❌ ${json.error}`, 'fout');
     setBezig(false);
@@ -319,6 +330,18 @@ export default function AdminPage() {
             <Inp label="Adres" value={nAdres} onChange={setNAdres} placeholder="Straat nr, postcode gemeente" />
             <Inp label="E-mail / Tel" value={nContact} onChange={setNContact} />
             <Inp label="Notities" value={nNotitie} onChange={setNNotitie} />
+            <div style={{ marginBottom:12 }}>
+              <Label t="Foto (optioneel)" />
+              <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+                <button type="button" onClick={()=>nFotoRef.current?.click()}
+                  style={{ background:'#0a1628', border:'1px solid #ffffff22', borderRadius:8, padding:'9px 16px', color:nFoto?'#00B4D8':'#ffffff55', cursor:'pointer', fontSize:14 }}>
+                  📷 {nFotoNaam || 'Kies foto...'}
+                </button>
+                {nFoto && <button type="button" onClick={()=>{setNFoto(null);setNFotoNaam('');}} style={{ background:'none', border:'none', color:'#C0392B', cursor:'pointer', fontSize:18 }}>✕</button>}
+              </div>
+              <input ref={nFotoRef} type="file" accept="image/*" style={{ display:'none' }}
+                onChange={e=>{ if(e.target.files[0]){ setNFoto(e.target.files[0]); setNFotoNaam(e.target.files[0].name); }}} />
+            </div>
             <Btn onClick={voegDeelnemerToe} disabled={bezig} kleur={GR}>➕ Toevoegen</Btn>
           </Vak>
 
