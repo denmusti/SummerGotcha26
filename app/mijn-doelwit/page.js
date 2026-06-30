@@ -145,7 +145,7 @@ export default function MijnDoelwitPage() {
             )}
 
             {/* Kill registreren */}
-            {data.status === 'actief' && data.spelGestart && (
+            {data.status === 'actief' && (data.spelGestart || data.isAdmin) && (
               <div style={{ background:`${BD}aa`, border:`2px solid ${RD}`, borderRadius:16, padding:24, marginBottom:16 }}>
                 <div style={{ color:RD, fontSize:12, letterSpacing:3, textTransform:'uppercase', marginBottom:14 }}>💀 Kill registreren</div>
 

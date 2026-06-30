@@ -101,8 +101,27 @@ export async function POST(request) {
     if (body.totaalDeelnemers !== undefined) statsUpdate.totaal_deelnemers = body.totaalDeelnemers;
     if (body.levenden !== undefined) statsUpdate.levenden = body.levenden;
     if (body.topschutterAantal !== undefined) statsUpdate.topschutter_aantal = body.topschutterAantal;
-    if (body.startDatum !== undefined) statsUpdate.start_datum = body.startDatum;
-    if (body.eindDatum !== undefined) statsUpdate.eind_datum = body.eindDatum;
+    // Automatische tijdlijnberichten bij start/stop
+    if (body.startDatum !== undefined) {
+      const oudeStart = new Date(stats.start_datum);
+      const nieuweStart = new Date(body.startDatum);
+      const nu = new Date();
+      // Startdatum wordt nu of in het verleden gezet → spel start
+      if (nieuweStart <= nu && oudeStart > nu) {
+        await supabase.from('tijdlijn').insert({ tekst: '🚀 Het spel is officieel gestart! Kijk om je heen...' });
+      }
+      statsUpdate.start_datum = body.startDatum;
+    }
+    if (body.eindDatum !== undefined) {
+      const oudeEind = new Date(stats.eind_datum);
+      const nieuwEind = new Date(body.eindDatum);
+      const nu = new Date();
+      // Einddatum wordt nu of in het verleden gezet → spel stopt
+      if (nieuwEind <= nu && oudeEind > nu) {
+        await supabase.from('tijdlijn').insert({ tekst: '🏁 Het spel is afgelopen! De overlevenden zijn bekend.' });
+      }
+      statsUpdate.eind_datum = body.eindDatum;
+    }
     if (body.marshallTelefoons !== undefined) statsUpdate.marshall_telefoons = body.marshallTelefoons;
 
     if (Object.keys(statsUpdate).length > 0) {

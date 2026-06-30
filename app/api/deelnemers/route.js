@@ -191,8 +191,10 @@ export async function POST(request) {
       }
     }
 
-    // Tijdlijn
-    const tekst = omschrijving || `Een deelnemer werd geëlimineerd`;
+    // Tijdlijn — automatisch met deelnemersnummer (anoniem)
+    const { data: levendenNa } = await supabase.from('deelnemers').select('id').eq('status', 'actief');
+    const aantalNa = levendenNa?.length || 0;
+    const tekst = omschrijving || `💀 ${slachtoffer.voornaam} ${slachtoffer.familienaam} is uitgeschakeld. Nog ${aantalNa} spelers actief.`;
     await supabase.from('tijdlijn').insert({ tekst });
 
     // WhatsApp notificaties (async, niet blokkeren)

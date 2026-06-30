@@ -33,8 +33,10 @@ export async function POST(request) {
       .eq('schutter_id', deelnemer.id)
       .order('tijdstip', { ascending: false });
 
+    const isAdminCode = toegangscode === stats.wachtwoord;
     return Response.json({
       naam: `${deelnemer.voornaam} ${deelnemer.familienaam}`,
+      isAdmin: isAdminCode,
       status: deelnemer.status,
       nummer: deelnemer.nummer,
       spelGestart,
