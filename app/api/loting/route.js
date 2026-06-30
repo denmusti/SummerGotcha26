@@ -33,7 +33,7 @@ export async function POST(request) {
     return Response.json({ error: 'Ongeldig wachtwoord' }, { status: 401 });
   }
 
-  const { actie } = body;
+  const { actie, testModus } = body;
 
   // Loting genereren
   if (actie === 'genereer') {
@@ -53,10 +53,11 @@ export async function POST(request) {
       return Response.json({ error: 'Ketting genereren mislukt' }, { status: 500 });
     }
 
-    // Reset alle doelwitten eerst
-    await supabase.from('deelnemers').update({ doelwit_id: null }).eq('status', 'actief');
+    // Reset alle doelwitten eerst (niet bij testmodus)
+    if (!testModus) await supabase.from('deelnemers').update({ doelwit_id: null }).eq('status', 'actief');
 
-    // Sla koppeling op
+    // Sla koppeling op (niet bij testmodus)
+    if (testModus) return Response.json({ success: true, aantalDeelnemers: deelnemers.length, testModus: true });
     for (let i = 0; i < deelnemers.length; i++) {
       const schutter = deelnemers[i];
       const doelwit = deelnemers[doelwit_indices[i]];

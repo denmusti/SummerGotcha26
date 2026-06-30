@@ -1,486 +1,497 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
-const BLAUW = '#1A6B9E';
-const BLAUW_DONKER = '#0D3B6E';
-const ACCENT = '#00B4D8';
-const ROOD = '#C0392B';
-const ROOD_LICHT = '#FADBD8';
-const GOUD = '#F4D03F';
-const GROEN = '#1E8449';
-const GROEN_LICHT = '#D5F5E3';
-const ORANJE = '#E67E22';
-const ORANJE_LICHT = '#FDEBD0';
-const WIT = '#FFFFFF';
-const GRIJS = '#F2F2F2';
+const BD = '#0D3B6E', BM = '#1A6B9E', AC = '#00B4D8';
+const RD = '#C0392B', RL = '#FADBD8';
+const GD = '#F4D03F', GR = '#1E8449', GL = '#D5F5E3';
+const OR = '#E67E22', OL = '#FDEBD0';
+const WIT = '#FFFFFF', GR2 = '#F2F2F2';
 
-function Input({ label, value, onChange, type = 'text', min, max, placeholder }) {
-  return (
-    <div style={{ marginBottom: 12 }}>
-      {label && <label style={{ display: 'block', color: '#ffffff88', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>{label}</label>}
-      <input type={type} value={value} onChange={e => onChange(type === 'number' ? Number(e.target.value) : e.target.value)}
-        min={min} max={max} placeholder={placeholder}
-        style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #ffffff22', background: '#0a1628', color: WIT, fontSize: 14, boxSizing: 'border-box', outline: 'none' }} />
-    </div>
-  );
+const inp = { width:'100%', padding:'9px 12px', borderRadius:8, border:'1px solid #ffffff22', background:'#0a1628', color:WIT, fontSize:14, boxSizing:'border-box', outline:'none' };
+const sel = { ...inp, cursor:'pointer' };
+
+function Label({ t }) { return <label style={{ display:'block', color:'#ffffff88', fontSize:11, letterSpacing:1, textTransform:'uppercase', marginBottom:4 }}>{t}</label>; }
+function Inp({ label, value, onChange, type='text', min, max, placeholder }) {
+  return <div style={{ marginBottom:12 }}>{label && <Label t={label} />}<input type={type} value={value} onChange={e => onChange(type==='number'?Number(e.target.value):e.target.value)} min={min} max={max} placeholder={placeholder} style={inp} /></div>;
 }
-
-function Knop({ onClick, children, kleur = BLAUW, disabled = false, klein = false }) {
-  return (
-    <button onClick={onClick} disabled={disabled}
-      style={{ background: disabled ? '#333' : kleur, color: WIT, border: 'none', borderRadius: 8,
-        padding: klein ? '6px 12px' : '10px 18px', fontSize: klein ? 12 : 14, fontWeight: 'bold',
-        cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1 }}>
-      {children}
-    </button>
-  );
+function Sel({ label, value, onChange, children }) {
+  return <div style={{ marginBottom:12 }}>{label && <Label t={label} />}<select value={value} onChange={e => onChange(e.target.value)} style={sel}>{children}</select></div>;
 }
-
-function Sectie({ titel, kleur = ACCENT, children }) {
-  return (
-    <div style={{ background: `${BLAUW_DONKER}aa`, border: '1px solid #ffffff22', borderRadius: 16, padding: 24, marginBottom: 24 }}>
-      <h2 style={{ margin: '0 0 20px', color: kleur, fontSize: 15, letterSpacing: 2, textTransform: 'uppercase' }}>{titel}</h2>
-      {children}
-    </div>
-  );
+function Btn({ onClick, children, kleur=BM, disabled=false, klein=false }) {
+  return <button onClick={onClick} disabled={disabled} style={{ background:disabled?'#333':kleur, color:WIT, border:'none', borderRadius:8, padding:klein?'6px 12px':'10px 18px', fontSize:klein?12:14, fontWeight:'bold', cursor:disabled?'not-allowed':'pointer', opacity:disabled?0.5:1 }}>{children}</button>;
 }
-
+function Vak({ titel, kleur=AC, children }) {
+  return <div style={{ background:`${BD}aa`, border:'1px solid #ffffff22', borderRadius:16, padding:24, marginBottom:24 }}><h2 style={{ margin:'0 0 18px', color:kleur, fontSize:15, letterSpacing:2, textTransform:'uppercase' }}>{titel}</h2>{children}</div>;
+}
 function Tab({ label, actief, onClick }) {
-  return (
-    <button onClick={onClick}
-      style={{ padding: '10px 20px', background: actief ? BLAUW_DONKER : 'transparent',
-        color: actief ? ACCENT : '#ffffff55', border: 'none', borderBottom: actief ? `2px solid ${ACCENT}` : '2px solid transparent',
-        cursor: 'pointer', fontSize: 14, fontWeight: actief ? 'bold' : 'normal' }}>
-      {label}
-    </button>
-  );
+  return <button onClick={onClick} style={{ padding:'10px 16px', background:actief?BD:'transparent', color:actief?AC:'#ffffff55', border:'none', borderBottom:actief?`2px solid ${AC}`:'2px solid transparent', cursor:'pointer', fontSize:13, fontWeight:actief?'bold':'normal', whiteSpace:'nowrap' }}>{label}</button>;
 }
 
 export default function AdminPage() {
   const [ingelogd, setIngelogd] = useState(false);
-  const [wachtwoord, setWachtwoord] = useState('');
+  const [ww, setWw] = useState('');
   const [loginFout, setLoginFout] = useState('');
   const [bezig, setBezig] = useState(false);
-  const [melding, setMelding] = useState({ tekst: '', type: 'ok' });
-  const [actieveTab, setActieveTab] = useState('stats');
+  const [melding, setMelding] = useState({ t:'', type:'ok' });
+  const [tab, setTab] = useState('stats');
 
   // Stats
   const [data, setData] = useState(null);
   const [totaal, setTotaal] = useState(0);
   const [levenden, setLevenden] = useState(0);
   const [topschutter, setTopschutter] = useState(0);
-  const [nieuweEliminatie, setNieuweEliminatie] = useState('');
+  const [nieuweElim, setNieuweElim] = useState('');
 
   // Deelnemers
   const [deelnemers, setDeelnemers] = useState([]);
-  const [nieuwVoornaam, setNieuwVoornaam] = useState('');
-  const [nieuwFamilienaam, setNieuwFamilienaam] = useState('');
-  const [nieuwAdres, setNieuwAdres] = useState('');
-  const [nieuwContact, setNieuwContact] = useState('');
-  const [nieuwNotitie, setNieuwNotitie] = useState('');
-  const [toonCode, setToonCode] = useState(null);
+  const [nVn, setNVn] = useState('');
+  const [nFn, setNFn] = useState('');
+  const [nAdres, setNAdres] = useState('');
+  const [nContact, setNContact] = useState('');
+  const [nNotitie, setNNotitie] = useState('');
+  const [toonPopup, setToonPopup] = useState(null);
+  const [fotoBezig, setFotoBezig] = useState({});
+  const fotoRef = useRef({});
 
   // Loting
   const [lotingStatus, setLotingStatus] = useState(null);
   const [marshallNaam, setMarshallNaam] = useState('Marshall 1');
-  const [aanpSchutter, setAanpSchutter] = useState('');
-  const [aanpDoelwit, setAanpDoelwit] = useState('');
+  const [aanpS, setAanpS] = useState('');
+  const [aanpD, setAanpD] = useState('');
+  const [sw1, setSw1] = useState('');
+  const [sw2, setSw2] = useState('');
+  const [testLoting, setTestLoting] = useState(false);
 
-  // Eliminatie via deelnemers
-  const [elimDeelnemer, setElimDeelnemer] = useState('');
+  // Eliminaties
+  const [elimD, setElimD] = useState('');
   const [elimTekst, setElimTekst] = useState('');
+  const [killcodeInput, setKillcodeInput] = useState('');
+  const [killcodeResult, setKillcodeResult] = useState(null);
 
-  function toonMelding(tekst, type = 'ok') {
-    setMelding({ tekst, type });
-    setTimeout(() => setMelding({ tekst: '', type: 'ok' }), 4000);
+  // Admin preview
+  const [previewDeelnemer, setPreviewDeelnemer] = useState(null);
+
+  function toonMelding(t, type='ok') {
+    setMelding({ t, type });
+    setTimeout(() => setMelding({ t:'', type:'ok' }), 4000);
+  }
+
+  async function api(url, body) {
+    const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ wachtwoord:ww, ...body }) });
+    return { res, json: await res.json() };
   }
 
   async function laadData() {
     const res = await fetch('/api/data');
     const json = await res.json();
-    setData(json);
-    setTotaal(json.totaalDeelnemers);
-    setLevenden(json.levenden);
-    setTopschutter(json.topschutterAantal);
+    setData(json); setTotaal(json.totaalDeelnemers); setLevenden(json.levenden); setTopschutter(json.topschutterAantal);
   }
 
   async function laadDeelnemers() {
-    const res = await fetch(`/api/deelnemers?wachtwoord=${wachtwoord}`);
-    if (res.ok) {
-      const json = await res.json();
-      setDeelnemers(json);
-    }
+    const res = await fetch(`/api/deelnemers?wachtwoord=${ww}`);
+    if (res.ok) setDeelnemers(await res.json());
   }
 
   async function login() {
-    setBezig(true);
-    setLoginFout('');
-    try {
-      const res = await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wachtwoord, totaalDeelnemers: -1 })
-      });
-      if (res.status === 401) { setLoginFout('❌ Ongeldig wachtwoord'); }
-      else { setIngelogd(true); await laadData(); await laadDeelnemers(); }
-    } finally { setBezig(false); }
+    setBezig(true); setLoginFout('');
+    const { res } = await api('/api/data', { totaalDeelnemers:-1 });
+    if (res.status === 401) setLoginFout('❌ Ongeldig wachtwoord');
+    else { setIngelogd(true); await laadData(); await laadDeelnemers(); }
+    setBezig(false);
   }
 
   async function slaStatsOp() {
     setBezig(true);
-    const res = await fetch('/api/data', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wachtwoord, totaalDeelnemers: totaal, levenden, topschutterAantal: topschutter })
-    });
+    const { res } = await api('/api/data', { totaalDeelnemers:totaal, levenden, topschutterAantal:topschutter });
     if (res.ok) toonMelding('✅ Statistieken opgeslagen!');
     else toonMelding('❌ Fout bij opslaan', 'fout');
     setBezig(false);
   }
 
-  async function voegEliminatieIn() {
-    if (!nieuweEliminatie.trim()) return;
+  async function voegElimToe() {
+    if (!nieuweElim.trim()) return;
     setBezig(true);
-    const res = await fetch('/api/data', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wachtwoord, nieuwEliminatie: nieuweEliminatie.trim() })
-    });
-    if (res.ok) { setNieuweEliminatie(''); toonMelding('✅ Eliminatie toegevoegd!'); await laadData(); }
+    const { res } = await api('/api/data', { nieuwEliminatie:nieuweElim.trim() });
+    if (res.ok) { setNieuweElim(''); toonMelding('✅ Toegevoegd!'); await laadData(); }
     setBezig(false);
   }
 
-  async function verwijderEliminatie(id) {
+  async function verwijderElim(id) {
     setBezig(true);
-    await fetch('/api/data', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wachtwoord, verwijderTijdlijnId: id })
-    });
-    await laadData();
-    setBezig(false);
+    await api('/api/data', { verwijderTijdlijnId:id });
+    await laadData(); setBezig(false);
   }
 
   async function voegDeelnemerToe() {
-    if (!nieuwVoornaam.trim() || !nieuwFamilienaam.trim()) {
-      toonMelding('❌ Voornaam en familienaam zijn verplicht', 'fout'); return;
-    }
+    if (!nVn.trim() || !nFn.trim()) { toonMelding('❌ Voornaam en familienaam zijn verplicht', 'fout'); return; }
     setBezig(true);
-    const res = await fetch('/api/deelnemers', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wachtwoord, actie: 'toevoegen', voornaam: nieuwVoornaam.trim(), familienaam: nieuwFamilienaam.trim(), adres: nieuwAdres, contact: nieuwContact, notitie: nieuwNotitie })
-    });
-    const json = await res.json();
+    const { res, json } = await api('/api/deelnemers', { actie:'toevoegen', voornaam:nVn.trim(), familienaam:nFn.trim(), adres:nAdres, contact:nContact, notitie:nNotitie });
     if (res.ok) {
-      setToonCode({ naam: `${nieuwVoornaam} ${nieuwFamilienaam}`, code: json.toegangscode });
-      setNieuwVoornaam(''); setNieuwFamilienaam(''); setNieuwAdres(''); setNieuwContact(''); setNieuwNotitie('');
+      setToonPopup({ naam:`${nVn} ${nFn}`, toegangscode:json.toegangscode, killcode:json.killcode });
+      setNVn(''); setNFn(''); setNAdres(''); setNContact(''); setNNotitie('');
       await laadDeelnemers(); await laadData();
-    } else { toonMelding(`❌ ${json.error}`, 'fout'); }
+    } else toonMelding(`❌ ${json.error}`, 'fout');
     setBezig(false);
+  }
+
+  async function uploadFoto(deelnemerId, file) {
+    setFotoBezig(p => ({ ...p, [deelnemerId]:true }));
+    const fd = new FormData();
+    fd.append('wachtwoord', ww);
+    fd.append('deelnemerId', deelnemerId);
+    fd.append('foto', file);
+    const res = await fetch('/api/foto', { method:'POST', body:fd });
+    const json = await res.json();
+    if (res.ok) { toonMelding('✅ Foto geüpload!'); await laadDeelnemers(); }
+    else toonMelding(`❌ ${json.error}`, 'fout');
+    setFotoBezig(p => ({ ...p, [deelnemerId]:false }));
   }
 
   async function verwijderDeelnemer(id, naam) {
     if (!confirm(`${naam} verwijderen?`)) return;
     setBezig(true);
-    const res = await fetch('/api/deelnemers', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wachtwoord, actie: 'verwijderen', id })
-    });
-    if (res.ok) { toonMelding('✅ Deelnemer verwijderd'); await laadDeelnemers(); await laadData(); }
+    const { res } = await api('/api/deelnemers', { actie:'verwijderen', id });
+    if (res.ok) { toonMelding('✅ Verwijderd'); await laadDeelnemers(); await laadData(); }
     setBezig(false);
   }
 
-  async function genereerLoting() {
-    if (!confirm(`Loting genereren voor ${deelnemers.filter(d => d.status === 'actief').length} deelnemers? Dit overschrijft de huidige koppeling.`)) return;
+  async function genereerLoting(isTest=false) {
+    const actief = deelnemers.filter(d => d.status==='actief').length;
+    if (!confirm(`${isTest?'TEST-loting':'Loting'} genereren voor ${actief} deelnemers?${isTest?' (testmodus — overschrijft huidige koppeling niet)':' (overschrijft huidige koppeling!)'}`)) return;
     setBezig(true);
-    const res = await fetch('/api/loting', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wachtwoord, actie: 'genereer' })
-    });
-    const json = await res.json();
-    if (res.ok) { toonMelding(`✅ Loting gegenereerd voor ${json.aantalDeelnemers} deelnemers!`); await laadDeelnemers(); }
-    else { toonMelding(`❌ ${json.error}`, 'fout'); }
+    const { res, json } = await api('/api/loting', { actie:'genereer', testModus:isTest });
+    if (res.ok) { toonMelding(`✅ ${isTest?'Test-loting':'Loting'} gegenereerd voor ${json.aantalDeelnemers} deelnemers!`); if (!isTest) await laadDeelnemers(); }
+    else toonMelding(`❌ ${json.error}`, 'fout');
     setBezig(false);
   }
 
   async function valideerKetting() {
     setBezig(true);
-    const res = await fetch('/api/loting', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wachtwoord, actie: 'valideer' })
-    });
-    const json = await res.json();
-    setLotingStatus(json);
-    setBezig(false);
+    const { json } = await api('/api/loting', { actie:'valideer' });
+    setLotingStatus(json); setBezig(false);
   }
 
   async function pasAan() {
-    if (!aanpSchutter || !aanpDoelwit || !marshallNaam) {
-      toonMelding('❌ Vul alle velden in', 'fout'); return;
-    }
+    if (!aanpS || !aanpD || !marshallNaam) { toonMelding('❌ Vul alle velden in', 'fout'); return; }
     setBezig(true);
-    const res = await fetch('/api/loting', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wachtwoord, actie: 'aanpassing', schutter_id: Number(aanpSchutter), nieuw_doelwit_id: Number(aanpDoelwit), marshall_naam: marshallNaam })
+    const { res, json } = await api('/api/loting', { actie:'aanpassing', schutter_id:Number(aanpS), nieuw_doelwit_id:Number(aanpD), marshall_naam:marshallNaam });
+    if (res.ok) { toonMelding(`✅ Aanpassing doorgevoerd. Nog ${json.aanpassingenResterend} over.`); await laadDeelnemers(); setAanpS(''); setAanpD(''); }
+    else toonMelding(`❌ ${json.error}`, 'fout');
+    setBezig(false);
+  }
+
+  async function switchDeelnemers() {
+    if (!sw1 || !sw2 || sw1===sw2) { toonMelding('❌ Kies 2 verschillende deelnemers', 'fout'); return; }
+    setBezig(true);
+    const { res, json } = await api('/api/deelnemers', { actie:'switch', id1:Number(sw1), id2:Number(sw2) });
+    if (res.ok) { toonMelding('✅ Doelwitten gewisseld!'); await laadDeelnemers(); setSw1(''); setSw2(''); }
+    else toonMelding(`❌ ${json.error}`, 'fout');
+    setBezig(false);
+  }
+
+  async function controleerKillcode() {
+    if (!killcodeInput.trim()) return;
+    setBezig(true);
+    const { res, json } = await api('/api/deelnemers', { actie:'killcode', killcode:killcodeInput });
+    if (res.ok) setKillcodeResult(json);
+    else { setKillcodeResult({ fout: json.error }); }
+    setBezig(false);
+  }
+
+  async function bevestigElim(id, metKillcode=false) {
+    setBezig(true);
+    const { res } = await api('/api/deelnemers', { actie:'elimineren', id, omschrijving:elimTekst, killcode_gebruikt:metKillcode });
+    if (res.ok) {
+      toonMelding('✅ Geëlimineerd!');
+      setElimD(''); setElimTekst(''); setKillcodeResult(null); setKillcodeInput('');
+      await laadDeelnemers(); await laadData();
+    }
+    setBezig(false);
+  }
+
+  async function laadAdminPreview() {
+    setBezig(true);
+    const res = await fetch('/api/mijn-doelwit', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ toegangscode:ww, adminPreview:true })
     });
     const json = await res.json();
-    if (res.ok) { toonMelding(`✅ Aanpassing doorgevoerd. Nog ${json.aanpassingenResterend} aanpassingen over.`); await laadDeelnemers(); setAanpSchutter(''); setAanpDoelwit(''); }
-    else { toonMelding(`❌ ${json.error}`, 'fout'); }
+    if (res.ok) setPreviewDeelnemer(json);
     setBezig(false);
   }
 
-  async function elimineerDeelnemer() {
-    if (!elimDeelnemer) { toonMelding('❌ Selecteer een deelnemer', 'fout'); return; }
-    const d = deelnemers.find(x => x.id === Number(elimDeelnemer));
-    if (!confirm(`${d?.voornaam} ${d?.familienaam} elimineren?`)) return;
-    setBezig(true);
-    const res = await fetch('/api/deelnemers', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wachtwoord, actie: 'elimineren', id: Number(elimDeelnemer), omschrijving: elimTekst || `Een deelnemer werd geëlimineerd` })
-    });
-    if (res.ok) {
-      toonMelding('✅ Deelnemer geëlimineerd!');
-      setElimDeelnemer(''); setElimTekst('');
-      await laadDeelnemers(); await laadData();
-    } else {
-      const json = await res.json();
-      toonMelding(`❌ ${json.error}`, 'fout');
-    }
-    setBezig(false);
-  }
+  const actief = deelnemers.filter(d => d.status==='actief');
+  const geelim = deelnemers.filter(d => d.status==='geëlimineerd');
 
-  const actieveDeelnemers = deelnemers.filter(d => d.status === 'actief');
-  const geelimineerdDeelnemers = deelnemers.filter(d => d.status === 'geëlimineerd');
-
-  if (!ingelogd) {
-    return (
-      <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #0a1628 0%, #0d2040 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <div style={{ background: `linear-gradient(135deg, ${BLAUW_DONKER}cc, #0a1628)`, border: `2px solid ${ACCENT}`, borderRadius: 20, padding: '40px 36px', width: '100%', maxWidth: 380, textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-          <h2 style={{ color: WIT, margin: '0 0 8px', fontSize: 22 }}>Marshall Login</h2>
-          <p style={{ color: '#ffffff55', fontSize: 13, margin: '0 0 28px' }}>Summer Gotcha 2026</p>
-          <input type="password" placeholder="Wachtwoord" value={wachtwoord} onChange={e => setWachtwoord(e.target.value)} onKeyDown={e => e.key === 'Enter' && login()}
-            style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: `1px solid ${loginFout ? ROOD : '#ffffff33'}`, background: '#0a1628', color: WIT, fontSize: 15, boxSizing: 'border-box', marginBottom: 12, outline: 'none' }} />
-          {loginFout && <div style={{ color: ROOD, fontSize: 13, marginBottom: 12 }}>{loginFout}</div>}
-          <Knop onClick={login} disabled={bezig} kleur={BLAUW}>{bezig ? 'Bezig...' : '🔓 Inloggen'}</Knop>
-          <div style={{ marginTop: 24 }}><a href="/" style={{ color: '#ffffff33', fontSize: 12, textDecoration: 'none' }}>← Publieke pagina</a></div>
-        </div>
+  if (!ingelogd) return (
+    <div style={{ minHeight:'100vh', background:'linear-gradient(180deg,#0a1628,#0d2040)', display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}>
+      <div style={{ background:`linear-gradient(135deg,${BD}cc,#0a1628)`, border:`2px solid ${AC}`, borderRadius:20, padding:'40px 36px', width:'100%', maxWidth:380, textAlign:'center' }}>
+        <div style={{ fontSize:48, marginBottom:16 }}>🔒</div>
+        <h2 style={{ color:WIT, margin:'0 0 8px', fontSize:22 }}>Marshall Login</h2>
+        <p style={{ color:'#ffffff55', fontSize:13, margin:'0 0 24px' }}>Summer Gotcha 2026</p>
+        <input type="password" placeholder="Wachtwoord" value={ww} onChange={e=>setWw(e.target.value)} onKeyDown={e=>e.key==='Enter'&&login()}
+          style={{ ...inp, marginBottom:12, border:`1px solid ${loginFout?RD:'#ffffff33'}`, fontSize:15, padding:'12px 16px' }} />
+        {loginFout && <div style={{ color:RD, fontSize:13, marginBottom:12 }}>{loginFout}</div>}
+        <Btn onClick={login} disabled={bezig} kleur={BM}>{bezig?'Bezig...':'🔓 Inloggen'}</Btn>
+        <div style={{ marginTop:24 }}><a href="/" style={{ color:'#ffffff33', fontSize:12, textDecoration:'none' }}>← Publieke pagina</a></div>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #0a1628 0%, #0d2040 100%)', color: WIT, paddingBottom: 60 }}>
+    <div style={{ minHeight:'100vh', background:'linear-gradient(180deg,#0a1628,#0d2040)', color:WIT, paddingBottom:60 }}>
       {/* Header */}
-      <div style={{ background: `linear-gradient(135deg, ${BLAUW_DONKER}, #0a1628)`, borderBottom: `3px solid ${ORANJE}`, padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      <div style={{ background:`linear-gradient(135deg,${BD},#0a1628)`, borderBottom:`3px solid ${OR}`, padding:'20px 24px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
         <div>
-          <div style={{ color: ORANJE, fontSize: 11, letterSpacing: 3, textTransform: 'uppercase' }}>Beheerpagina</div>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 'bold' }}>⚙️ Summer Gotcha 2026</h1>
+          <div style={{ color:OR, fontSize:11, letterSpacing:3, textTransform:'uppercase' }}>Beheerpagina</div>
+          <h1 style={{ margin:0, fontSize:20, fontWeight:'bold' }}>⚙️ Summer Gotcha 2026</h1>
         </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <a href="/" style={{ color: ACCENT, fontSize: 13, textDecoration: 'none' }}>← Publieke pagina</a>
-          <Knop onClick={() => setIngelogd(false)} kleur="#333" klein>Uitloggen</Knop>
+        <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+          <a href="/" style={{ color:AC, fontSize:13, textDecoration:'none' }}>← Publieke pagina</a>
+          <Btn onClick={()=>setIngelogd(false)} kleur="#333" klein>Uitloggen</Btn>
         </div>
       </div>
 
       {/* Melding */}
-      {melding.tekst && (
-        <div style={{ background: melding.type === 'ok' ? GROEN_LICHT : ROOD_LICHT, color: melding.type === 'ok' ? GROEN : ROOD, padding: '12px 24px', textAlign: 'center', fontWeight: 'bold' }}>
-          {melding.tekst}
-        </div>
-      )}
+      {melding.t && <div style={{ background:melding.type==='ok'?GL:RL, color:melding.type==='ok'?GR:RD, padding:'12px 24px', textAlign:'center', fontWeight:'bold' }}>{melding.t}</div>}
 
-      {/* Code popup */}
-      {toonCode && (
-        <div style={{ position: 'fixed', inset: 0, background: '#000000aa', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: BLAUW_DONKER, border: `2px solid ${GOUD}`, borderRadius: 20, padding: 40, textAlign: 'center', maxWidth: 360 }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🎯</div>
-            <h3 style={{ color: WIT, margin: '0 0 8px' }}>{toonCode.naam}</h3>
-            <p style={{ color: '#ffffff66', fontSize: 13, margin: '0 0 20px' }}>Persoonlijke toegangscode:</p>
-            <div style={{ background: '#0a1628', border: `2px solid ${GOUD}`, borderRadius: 12, padding: '16px 24px', marginBottom: 20 }}>
-              <span style={{ color: GOUD, fontSize: 32, fontWeight: 'bold', letterSpacing: 4 }}>{toonCode.code}</span>
+      {/* Popup: toegangscode + killcode */}
+      {toonPopup && (
+        <div style={{ position:'fixed', inset:0, background:'#000000aa', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100 }}>
+          <div style={{ background:BD, border:`2px solid ${GD}`, borderRadius:20, padding:36, textAlign:'center', maxWidth:380, width:'90%' }}>
+            <div style={{ fontSize:40, marginBottom:12 }}>🎯</div>
+            <h3 style={{ color:WIT, margin:'0 0 20px' }}>{toonPopup.naam}</h3>
+            <div style={{ background:'#0a1628', border:`1px solid ${AC}`, borderRadius:12, padding:16, marginBottom:12 }}>
+              <div style={{ color:'#ffffff66', fontSize:11, letterSpacing:2, textTransform:'uppercase', marginBottom:4 }}>Toegangscode (doelwit opvragen)</div>
+              <div style={{ color:AC, fontSize:26, fontWeight:'bold', letterSpacing:4 }}>{toonPopup.toegangscode}</div>
             </div>
-            <p style={{ color: '#ffffff44', fontSize: 12, marginBottom: 20 }}>Geef deze code enkel aan de deelnemer zelf. Hiermee kan hij/zij zijn/haar doelwit opvragen.</p>
-            <Knop onClick={() => setToonCode(null)} kleur={GROEN}>✓ Begrepen</Knop>
+            <div style={{ background:'#0a1628', border:`1px solid ${RD}`, borderRadius:12, padding:16, marginBottom:20 }}>
+              <div style={{ color:'#ffffff66', fontSize:11, letterSpacing:2, textTransform:'uppercase', marginBottom:4 }}>Killcode (voor schutter bij eliminatie)</div>
+              <div style={{ color:RD, fontSize:26, fontWeight:'bold', letterSpacing:4 }}>{toonPopup.killcode}</div>
+            </div>
+            <p style={{ color:'#ffffff44', fontSize:12, marginBottom:20 }}>⚠️ Geef de <strong style={{color:AC}}>toegangscode</strong> aan de deelnemer zelf.<br/>De <strong style={{color:RD}}>killcode</strong> pas NADAT ze geëlimineerd zijn.</p>
+            <Btn onClick={()=>setToonPopup(null)} kleur={GR}>✓ Begrepen</Btn>
           </div>
         </div>
       )}
 
       {/* Tabs */}
-      <div style={{ borderBottom: '1px solid #ffffff22', display: 'flex', paddingLeft: 24, gap: 4, overflowX: 'auto' }}>
-        <Tab label="📊 Stats" actief={actieveTab === 'stats'} onClick={() => setActieveTab('stats')} />
-        <Tab label={`👥 Deelnemers (${deelnemers.length})`} actief={actieveTab === 'deelnemers'} onClick={() => setActieveTab('deelnemers')} />
-        <Tab label="🎯 Loting" actief={actieveTab === 'loting'} onClick={() => setActieveTab('loting')} />
-        <Tab label="💀 Eliminaties" actief={actieveTab === 'eliminaties'} onClick={() => setActieveTab('eliminaties')} />
+      <div style={{ borderBottom:'1px solid #ffffff22', display:'flex', paddingLeft:16, gap:0, overflowX:'auto' }}>
+        {[['stats','📊 Stats'],['deelnemers',`👥 Deelnemers (${deelnemers.length})`],['loting','🎯 Loting'],['eliminaties','💀 Eliminaties'],['preview','🔍 Preview']].map(([id,label]) =>
+          <Tab key={id} label={label} actief={tab===id} onClick={()=>setTab(id)} />
+        )}
       </div>
 
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '28px 16px' }}>
+      <div style={{ maxWidth:820, margin:'0 auto', padding:'24px 16px' }}>
 
-        {/* TAB: STATS */}
-        {actieveTab === 'stats' && (
-          <>
-            <Sectie titel="📊 Statistieken bijwerken">
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16 }}>
-                <Input label="Totaal ingeschreven" type="number" value={totaal} onChange={setTotaal} min={0} />
-                <Input label="Nog actief (levenden)" type="number" value={levenden} onChange={setLevenden} min={0} />
-                <Input label="Topschutter (# elim.)" type="number" value={topschutter} onChange={setTopschutter} min={0} />
-              </div>
-              <Knop onClick={slaStatsOp} disabled={bezig} kleur={GROEN}>💾 Opslaan</Knop>
-            </Sectie>
-
-            <Sectie titel="💧 Tijdlijn beheren" kleur={ROOD}>
-              <Input label="Nieuwe eliminatie toevoegen" value={nieuweEliminatie} onChange={setNieuweEliminatie} placeholder="Omschrijving..." />
-              <div style={{ marginBottom: 20 }}>
-                <Knop onClick={voegEliminatieIn} disabled={bezig || !nieuweEliminatie.trim()} kleur={ROOD}>💀 Toevoegen</Knop>
-              </div>
-              {data?.tijdlijn?.map(item => (
-                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #ffffff11' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ color: WIT, fontSize: 14 }}>{item.tekst}</div>
-                    <div style={{ color: '#ffffff44', fontSize: 11 }}>{new Date(item.tijdstip).toLocaleString('nl-BE')}</div>
-                  </div>
-                  <button onClick={() => verwijderEliminatie(item.id)}
-                    style={{ background: 'none', border: `1px solid ${ROOD}`, color: ROOD, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}>
-                    ✕
-                  </button>
+        {/* ── STATS ── */}
+        {tab==='stats' && <>
+          <Vak titel="📊 Statistieken bijwerken">
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12 }}>
+              <Inp label="Totaal ingeschreven" type="number" value={totaal} onChange={setTotaal} min={0} />
+              <Inp label="Nog actief" type="number" value={levenden} onChange={setLevenden} min={0} />
+              <Inp label="Topschutter (# kills)" type="number" value={topschutter} onChange={setTopschutter} min={0} />
+            </div>
+            <Btn onClick={slaStatsOp} disabled={bezig} kleur={GR}>💾 Opslaan</Btn>
+          </Vak>
+          <Vak titel="💧 Tijdlijn" kleur={RD}>
+            <Inp label="Nieuwe eliminatie" value={nieuweElim} onChange={setNieuweElim} placeholder="Omschrijving..." />
+            <div style={{ marginBottom:20 }}><Btn onClick={voegElimToe} disabled={bezig||!nieuweElim.trim()} kleur={RD}>💀 Toevoegen</Btn></div>
+            {data?.tijdlijn?.map(item => (
+              <div key={item.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid #ffffff11' }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ color:WIT, fontSize:14 }}>{item.tekst}</div>
+                  <div style={{ color:'#ffffff44', fontSize:11 }}>{new Date(item.tijdstip).toLocaleString('nl-BE')}</div>
                 </div>
-              ))}
-            </Sectie>
-          </>
-        )}
-
-        {/* TAB: DEELNEMERS */}
-        {actieveTab === 'deelnemers' && (
-          <>
-            <Sectie titel="➕ Nieuwe deelnemer toevoegen" kleur={GROEN}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <Input label="Voornaam ★" value={nieuwVoornaam} onChange={setNieuwVoornaam} />
-                <Input label="Familienaam ★" value={nieuwFamilienaam} onChange={setNieuwFamilienaam} />
+                <button onClick={()=>verwijderElim(item.id)} style={{ background:'none', border:`1px solid ${RD}`, color:RD, borderRadius:6, padding:'4px 10px', cursor:'pointer', fontSize:12 }}>✕</button>
               </div>
-              <Input label="Adres" value={nieuwAdres} onChange={setNieuwAdres} placeholder="Straat nr, postcode gemeente" />
-              <Input label="E-mail / Tel" value={nieuwContact} onChange={setNieuwContact} />
-              <Input label="Notities (bv. koppel met nr. X)" value={nieuwNotitie} onChange={setNieuwNotitie} />
-              <Knop onClick={voegDeelnemerToe} disabled={bezig} kleur={GROEN}>➕ Toevoegen</Knop>
-            </Sectie>
+            ))}
+          </Vak>
+        </>}
 
-            <Sectie titel={`👥 Actieve deelnemers (${actieveDeelnemers.length})`}>
-              {actieveDeelnemers.length === 0 ? (
-                <div style={{ color: '#ffffff33', fontStyle: 'italic', textAlign: 'center', padding: 20 }}>Nog geen deelnemers</div>
-              ) : actieveDeelnemers.map(d => (
-                <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid #ffffff11' }}>
-                  <div style={{ background: BLAUW, color: WIT, borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 'bold', minWidth: 36, textAlign: 'center' }}>
-                    #{d.nummer}
+        {/* ── DEELNEMERS ── */}
+        {tab==='deelnemers' && <>
+          <Vak titel="➕ Nieuwe deelnemer" kleur={GR}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <Inp label="Voornaam ★" value={nVn} onChange={setNVn} />
+              <Inp label="Familienaam ★" value={nFn} onChange={setNFn} />
+            </div>
+            <Inp label="Adres" value={nAdres} onChange={setNAdres} placeholder="Straat nr, postcode gemeente" />
+            <Inp label="E-mail / Tel" value={nContact} onChange={setNContact} />
+            <Inp label="Notities" value={nNotitie} onChange={setNNotitie} />
+            <Btn onClick={voegDeelnemerToe} disabled={bezig} kleur={GR}>➕ Toevoegen</Btn>
+          </Vak>
+
+          <Vak titel={`👥 Actieve deelnemers (${actief.length})`}>
+            {actief.length===0
+              ? <div style={{ color:'#ffffff33', fontStyle:'italic', textAlign:'center', padding:20 }}>Nog geen deelnemers</div>
+              : actief.map(d => (
+              <div key={d.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 0', borderBottom:'1px solid #ffffff11', flexWrap:'wrap' }}>
+                {/* Foto */}
+                <div style={{ width:48, height:56, background:`${BM}44`, borderRadius:8, border:`1px solid ${BM}`, overflow:'hidden', flexShrink:0, cursor:'pointer', position:'relative' }}
+                  onClick={()=>fotoRef.current[d.id]?.click()}>
+                  {d.foto_url
+                    ? <img src={d.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                    : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>📷</div>
+                  }
+                  {fotoBezig[d.id] && <div style={{ position:'absolute', inset:0, background:'#000000aa', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, color:WIT }}>...</div>}
+                  <input ref={el=>fotoRef.current[d.id]=el} type="file" accept="image/*" style={{ display:'none' }}
+                    onChange={e=>e.target.files[0]&&uploadFoto(d.id,e.target.files[0])} />
+                </div>
+
+                <div style={{ background:BM, color:WIT, borderRadius:8, padding:'4px 10px', fontSize:12, fontWeight:'bold', minWidth:36, textAlign:'center' }}>#{d.nummer}</div>
+                <div style={{ flex:1, minWidth:140 }}>
+                  <div style={{ color:WIT, fontWeight:'bold' }}>{d.voornaam} {d.familienaam}</div>
+                  <div style={{ color:'#ffffff55', fontSize:12 }}>{d.adres}</div>
+                  <div style={{ display:'flex', gap:12, marginTop:2 }}>
+                    <span style={{ color:AC, fontSize:11 }}>🔑 {d.toegangscode}</span>
+                    <span style={{ color:RD, fontSize:11 }}>💀 {d.killcode}</span>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ color: WIT, fontWeight: 'bold' }}>{d.voornaam} {d.familienaam}</div>
-                    <div style={{ color: '#ffffff55', fontSize: 12 }}>
-                      {d.adres && `📍 ${d.adres}`}
-                      {d.doelwit && <span style={{ color: ROOD, marginLeft: 8 }}>🎯 {d.doelwit.voornaam} {d.doelwit.familienaam}</span>}
+                </div>
+                {d.doelwit && <div style={{ color:RD, fontSize:12 }}>🎯 {d.doelwit.voornaam} {d.doelwit.familienaam}</div>}
+                <Btn onClick={()=>verwijderDeelnemer(d.id,`${d.voornaam} ${d.familienaam}`)} kleur={RD} klein>✕</Btn>
+              </div>
+            ))}
+            <p style={{ color:'#ffffff44', fontSize:12, marginTop:12 }}>📷 Klik op de fotovakje om een foto te uploaden.</p>
+          </Vak>
+
+          {geelim.length>0 && <Vak titel={`💀 Geëlimineerd (${geelim.length})`} kleur="#666">
+            {geelim.map(d => (
+              <div key={d.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 0', borderBottom:'1px solid #ffffff11', opacity:0.5 }}>
+                <div style={{ background:'#333', color:WIT, borderRadius:8, padding:'4px 10px', fontSize:12, minWidth:36, textAlign:'center' }}>#{d.nummer}</div>
+                <div style={{ color:'#ffffff88', textDecoration:'line-through' }}>{d.voornaam} {d.familienaam}</div>
+              </div>
+            ))}
+          </Vak>}
+        </>}
+
+        {/* ── LOTING ── */}
+        {tab==='loting' && <>
+          <Vak titel="🎲 Loting genereren" kleur={GD}>
+            <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>{actief.length} actieve deelnemers.</p>
+            <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:16 }}>
+              <Btn onClick={()=>genereerLoting(false)} disabled={bezig||actief.length<3} kleur={GD}>🎲 Genereer loting</Btn>
+              <Btn onClick={()=>genereerLoting(true)} disabled={bezig||actief.length<3} kleur={OR}>🧪 Test-loting</Btn>
+              <Btn onClick={valideerKetting} disabled={bezig} kleur={BM}>🔗 Valideer ketting</Btn>
+            </div>
+            {lotingStatus && (
+              <div style={{ background:lotingStatus.geldig?GL:RL, borderRadius:10, padding:16 }}>
+                <div style={{ color:lotingStatus.geldig?GR:RD, fontWeight:'bold', marginBottom:6 }}>
+                  {lotingStatus.geldig?'✅ Ketting is geldig!':`❌ ${lotingStatus.fouten.length} probleem(en)`}
+                </div>
+                {!lotingStatus.geldig && lotingStatus.fouten.map((f,i)=><div key={i} style={{ color:RD, fontSize:13 }}>• {f}</div>)}
+              </div>
+            )}
+          </Vak>
+
+          <Vak titel="🔀 Deelnemers switchen" kleur={OR}>
+            <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>Wissel de doelwitten van 2 deelnemers als de koppeling te makkelijk is.</p>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <Sel label="Deelnemer 1" value={sw1} onChange={setSw1}>
+                <option value="">Kies...</option>
+                {actief.map(d=><option key={d.id} value={d.id}>#{d.nummer} {d.voornaam} {d.familienaam}</option>)}
+              </Sel>
+              <Sel label="Deelnemer 2" value={sw2} onChange={setSw2}>
+                <option value="">Kies...</option>
+                {actief.filter(d=>d.id!==Number(sw1)).map(d=><option key={d.id} value={d.id}>#{d.nummer} {d.voornaam} {d.familienaam}</option>)}
+              </Sel>
+            </div>
+            <Btn onClick={switchDeelnemers} disabled={bezig||!sw1||!sw2} kleur={OR}>🔀 Wissel doelwitten</Btn>
+          </Vak>
+
+          <Vak titel="🔧 Marshall aanpassing">
+            <Inp label="Marshall naam" value={marshallNaam} onChange={setMarshallNaam} />
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <Sel label="Schutter" value={aanpS} onChange={setAanpS}>
+                <option value="">Kies schutter...</option>
+                {actief.map(d=><option key={d.id} value={d.id}>#{d.nummer} {d.voornaam} {d.familienaam}</option>)}
+              </Sel>
+              <Sel label="Nieuw doelwit" value={aanpD} onChange={setAanpD}>
+                <option value="">Kies doelwit...</option>
+                {actief.filter(d=>d.id!==Number(aanpS)).map(d=><option key={d.id} value={d.id}>#{d.nummer} {d.voornaam} {d.familienaam}</option>)}
+              </Sel>
+            </div>
+            <Btn onClick={pasAan} disabled={bezig||!aanpS||!aanpD} kleur={OR}>🔧 Aanpassing doorvoeren</Btn>
+          </Vak>
+
+          <Vak titel="📋 Huidige koppelingen">
+            {actief.filter(d=>d.doelwit).length===0
+              ? <div style={{ color:'#ffffff33', fontStyle:'italic', textAlign:'center', padding:20 }}>Nog geen loting</div>
+              : actief.map(d=>(
+              <div key={d.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 0', borderBottom:'1px solid #ffffff11', flexWrap:'wrap' }}>
+                <div style={{ color:WIT, minWidth:180, fontSize:14 }}>#{d.nummer} {d.voornaam} {d.familienaam}</div>
+                <div style={{ color:AC }}>→</div>
+                <div style={{ color:RD, fontSize:14 }}>{d.doelwit?`${d.doelwit.voornaam} ${d.doelwit.familienaam}`:<span style={{ color:'#ffffff33', fontStyle:'italic' }}>geen</span>}</div>
+              </div>
+            ))}
+          </Vak>
+        </>}
+
+        {/* ── ELIMINATIES ── */}
+        {tab==='eliminaties' && <>
+          <Vak titel="🔑 Via killcode" kleur={GD}>
+            <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>De schutter geeft de killcode van zijn slachtoffer in ter bevestiging.</p>
+            <div style={{ display:'flex', gap:12, alignItems:'flex-end' }}>
+              <div style={{ flex:1 }}>
+                <Inp label="Killcode slachtoffer" value={killcodeInput} onChange={setKillcodeInput} placeholder="bv. ABX4Y2" />
+              </div>
+              <div style={{ marginBottom:12 }}>
+                <Btn onClick={controleerKillcode} disabled={bezig||!killcodeInput.trim()} kleur={GD}>🔍 Controleer</Btn>
+              </div>
+            </div>
+            {killcodeResult && !killcodeResult.fout && (
+              <div style={{ background:GL, borderRadius:12, padding:16, marginTop:8 }}>
+                <div style={{ color:GR, fontWeight:'bold', marginBottom:12 }}>✅ Killcode geldig — slachtoffer: <strong>{killcodeResult.slachtoffer.naam}</strong></div>
+                <Inp label="Omschrijving voor tijdlijn (optioneel)" value={elimTekst} onChange={setElimTekst} placeholder="bv. Geraakt aan het station" />
+                <Btn onClick={()=>bevestigElim(killcodeResult.slachtoffer.id, true)} disabled={bezig} kleur={RD}>💀 Bevestig eliminatie</Btn>
+              </div>
+            )}
+            {killcodeResult?.fout && <div style={{ color:RD, background:RL, borderRadius:10, padding:12, marginTop:8 }}>❌ {killcodeResult.fout}</div>}
+          </Vak>
+
+          <Vak titel="⚙️ Manueel (marshall)" kleur={OR}>
+            <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>Zonder killcode — voor betwiste gevallen of marshall-beslissing.</p>
+            <Sel label="Geëlimineerde deelnemer" value={elimD} onChange={setElimD}>
+              <option value="">Kies deelnemer...</option>
+              {actief.map(d=><option key={d.id} value={d.id}>#{d.nummer} {d.voornaam} {d.familienaam}</option>)}
+            </Sel>
+            <Inp label="Omschrijving (optioneel)" value={elimTekst} onChange={setElimTekst} placeholder="bv. Betwist geval beslecht door marshall" />
+            <Btn onClick={()=>bevestigElim(Number(elimD), false)} disabled={bezig||!elimD} kleur={RD}>💀 Elimineer</Btn>
+          </Vak>
+        </>}
+
+        {/* ── PREVIEW ── */}
+        {tab==='preview' && <>
+          <Vak titel="🔍 Admin preview — alle doelwitpagina's">
+            <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>Bekijk hoe de doelwitpagina eruitziet voor elke deelnemer, ook vóór de start van het spel.</p>
+            {!previewDeelnemer
+              ? <Btn onClick={laadAdminPreview} disabled={bezig} kleur={BM}>🔍 Laad preview</Btn>
+              : <>
+                <div style={{ marginBottom:16 }}>
+                  <span style={{ background:previewDeelnemer.spelGestart?GL:OL, color:previewDeelnemer.spelGestart?GR:OR, borderRadius:20, padding:'4px 14px', fontSize:13, fontWeight:'bold' }}>
+                    {previewDeelnemer.spelGestart?'✅ Spel is gestart':'⏳ Spel nog niet gestart — doelwitten verborgen voor deelnemers'}
+                  </span>
+                </div>
+                {previewDeelnemer.deelnemers?.map(d=>(
+                  <div key={d.id} style={{ background:'#0a1628', borderRadius:12, padding:16, marginBottom:12, border:`1px solid ${d.doelwit?'#ffffff22':'#ff000033'}` }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+                      <div style={{ background:BM, color:WIT, borderRadius:8, padding:'4px 10px', fontSize:12, fontWeight:'bold' }}>#{d.nummer}</div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ color:WIT, fontWeight:'bold' }}>{d.naam}</div>
+                        <div style={{ color:AC, fontSize:11 }}>🔑 {d.toegangscode}</div>
+                      </div>
+                      <div style={{ color:RD, fontSize:14 }}>
+                        {d.doelwit?`🎯 ${d.doelwit.naam}`:<span style={{ color:'#ffffff33', fontStyle:'italic' }}>geen doelwit</span>}
+                      </div>
                     </div>
-                    <div style={{ color: GOUD, fontSize: 11, marginTop: 2 }}>Code: {d.toegangscode}</div>
-                  </div>
-                  <Knop onClick={() => verwijderDeelnemer(d.id, `${d.voornaam} ${d.familienaam}`)} kleur={ROOD} klein>✕</Knop>
-                </div>
-              ))}
-            </Sectie>
-
-            {geelimineerdDeelnemers.length > 0 && (
-              <Sectie titel={`💀 Geëlimineerd (${geelimineerdDeelnemers.length})`} kleur="#666">
-                {geelimineerdDeelnemers.map(d => (
-                  <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #ffffff11', opacity: 0.6 }}>
-                    <div style={{ background: '#333', color: WIT, borderRadius: 8, padding: '4px 10px', fontSize: 12, minWidth: 36, textAlign: 'center' }}>#{d.nummer}</div>
-                    <div style={{ flex: 1, color: '#ffffff88', textDecoration: 'line-through' }}>{d.voornaam} {d.familienaam}</div>
+                    {d.doelwit?.adres && <div style={{ color:'#ffffff55', fontSize:12, marginTop:6, paddingLeft:4 }}>📍 {d.doelwit.adres}</div>}
                   </div>
                 ))}
-              </Sectie>
-            )}
-          </>
-        )}
-
-        {/* TAB: LOTING */}
-        {actieveTab === 'loting' && (
-          <>
-            <Sectie titel="🎲 Loting genereren" kleur={GOUD}>
-              <p style={{ color: '#ffffff66', fontSize: 13, marginTop: 0 }}>
-                Genereert een gesloten ketting voor alle {actieveDeelnemers.length} actieve deelnemers. Overschrijft de huidige koppeling.
-              </p>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <Knop onClick={genereerLoting} disabled={bezig || actieveDeelnemers.length < 3} kleur={GOUD}>
-                  🎲 Genereer loting
-                </Knop>
-                <Knop onClick={valideerKetting} disabled={bezig} kleur={BLAUW}>
-                  🔗 Valideer ketting
-                </Knop>
-              </div>
-              {lotingStatus && (
-                <div style={{ marginTop: 16, background: lotingStatus.geldig ? GROEN_LICHT : ROOD_LICHT, borderRadius: 10, padding: 16 }}>
-                  <div style={{ color: lotingStatus.geldig ? GROEN : ROOD, fontWeight: 'bold', marginBottom: 8 }}>
-                    {lotingStatus.geldig ? '✅ Ketting is geldig!' : `❌ ${lotingStatus.fouten.length} probleem(en) gevonden`}
-                  </div>
-                  {!lotingStatus.geldig && lotingStatus.fouten.map((f, i) => (
-                    <div key={i} style={{ color: ROOD, fontSize: 13 }}>• {f}</div>
-                  ))}
-                </div>
-              )}
-            </Sectie>
-
-            <Sectie titel="🔧 Marshall aanpassing" kleur={ORANJE}>
-              <p style={{ color: '#ffffff66', fontSize: 13, marginTop: 0 }}>Max. 3 aanpassingen per marshall.</p>
-              <Input label="Marshall naam" value={marshallNaam} onChange={setMarshallNaam} placeholder="bv. Marshall 1" />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={{ display: 'block', color: '#ffffff88', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>Schutter</label>
-                  <select value={aanpSchutter} onChange={e => setAanpSchutter(e.target.value)}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #ffffff22', background: '#0a1628', color: WIT, fontSize: 14 }}>
-                    <option value="">Kies schutter...</option>
-                    {actieveDeelnemers.map(d => <option key={d.id} value={d.id}>#{d.nummer} {d.voornaam} {d.familienaam}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display: 'block', color: '#ffffff88', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>Nieuw doelwit</label>
-                  <select value={aanpDoelwit} onChange={e => setAanpDoelwit(e.target.value)}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #ffffff22', background: '#0a1628', color: WIT, fontSize: 14 }}>
-                    <option value="">Kies doelwit...</option>
-                    {actieveDeelnemers.filter(d => d.id !== Number(aanpSchutter)).map(d => <option key={d.id} value={d.id}>#{d.nummer} {d.voornaam} {d.familienaam}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div style={{ marginTop: 12 }}>
-                <Knop onClick={pasAan} disabled={bezig || !aanpSchutter || !aanpDoelwit} kleur={ORANJE}>🔧 Aanpassing doorvoeren</Knop>
-              </div>
-            </Sectie>
-
-            <Sectie titel="📋 Huidige koppelingen">
-              {actieveDeelnemers.filter(d => d.doelwit).length === 0 ? (
-                <div style={{ color: '#ffffff33', fontStyle: 'italic', textAlign: 'center', padding: 20 }}>Nog geen loting gegenereerd</div>
-              ) : actieveDeelnemers.map(d => (
-                <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #ffffff11' }}>
-                  <div style={{ color: WIT, minWidth: 180 }}>#{d.nummer} {d.voornaam} {d.familienaam}</div>
-                  <div style={{ color: ACCENT, fontSize: 18 }}>→</div>
-                  <div style={{ color: ROOD }}>
-                    {d.doelwit ? `#${d.doelwit_nummer || ''} ${d.doelwit.voornaam} ${d.doelwit.familienaam}` : <span style={{ color: '#ffffff33', fontStyle: 'italic' }}>geen doelwit</span>}
-                  </div>
-                </div>
-              ))}
-            </Sectie>
-          </>
-        )}
-
-        {/* TAB: ELIMINATIES */}
-        {actieveTab === 'eliminaties' && (
-          <Sectie titel="💀 Deelnemer elimineren" kleur={ROOD}>
-            <p style={{ color: '#ffffff66', fontSize: 13, marginTop: 0 }}>
-              Bij eliminatie wordt de doelwitkoppeling automatisch overgedragen aan de schutter.
-            </p>
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', color: '#ffffff88', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>Geëlimineerde deelnemer</label>
-              <select value={elimDeelnemer} onChange={e => setElimDeelnemer(e.target.value)}
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #ffffff22', background: '#0a1628', color: WIT, fontSize: 14 }}>
-                <option value="">Kies deelnemer...</option>
-                {actieveDeelnemers.map(d => <option key={d.id} value={d.id}>#{d.nummer} {d.voornaam} {d.familienaam}</option>)}
-              </select>
-            </div>
-            <Input label="Omschrijving voor tijdlijn (optioneel)" value={elimTekst} onChange={setElimTekst} placeholder="bv. Deelnemer werd geraakt aan Café NOBIS" />
-            <Knop onClick={elimineerDeelnemer} disabled={bezig || !elimDeelnemer} kleur={ROOD}>💀 Elimineer deelnemer</Knop>
-          </Sectie>
-        )}
+                <div style={{ marginTop:16 }}><Btn onClick={laadAdminPreview} disabled={bezig} kleur={BM} klein>🔄 Vernieuwen</Btn></div>
+              </>
+            }
+          </Vak>
+        </>}
       </div>
     </div>
   );
