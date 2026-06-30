@@ -6,23 +6,43 @@ async function checkWachtwoord(supabase, wachtwoord) {
   return data?.wachtwoord === wachtwoord;
 }
 
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
 function genereerKetting(deelnemers) {
-  let pogingen = 0;
-  while (pogingen < 1000) {
-    const indices = shuffle(deelnemers.map((_, i) => i));
-    if (!indices.some((d, i) => d === i)) return indices;
-    pogingen++;
+  // Sato-algoritme: genereer een gegarandeerd gesloten ketting (Hamiltoniaanse cykel)
+  // Stap 1: maak een random permutatie
+  const n = deelnemers.length;
+  const indices = Array.from({ length: n }, (_, i) => i);
+  
+  // Fisher-Yates shuffle
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
   }
-  return null;
+  
+  // Stap 2: bouw één gesloten ketting via de geshuffle volgorde
+  // Deelnemer op positie i krijgt deelnemer op positie (i+1) % n als doelwit
+  // Dit garandeert altijd precies één ketting
+  const doelwitten = new Array(n);
+  for (let i = 0; i < n; i++) {
+    doelwitten[indices[i]] = indices[(i + 1) % n];
+  }
+  
+  // Valideer: geen zelfkoppelingen
+  if (doelwitten.some((d, i) => d === i)) {
+    // Herstel: wissel de twee zelfkoppelingen
+    for (let i = 0; i < n; i++) {
+      if (doelwitten[i] === i) {
+        // Zoek een ander element om mee te wisselen
+        for (let j = i + 1; j < n; j++) {
+          if (doelwitten[j] !== i && doelwitten[i] !== j) {
+            [doelwitten[i], doelwitten[j]] = [doelwitten[j], doelwitten[i]];
+            break;
+          }
+        }
+      }
+    }
+  }
+  
+  return doelwitten;
 }
 
 export async function POST(request) {
