@@ -240,6 +240,15 @@ export default function AdminPage() {
     setBezig(false);
   }
 
+  async function stuurStartBerichtenAlle() {
+    if (!confirm('Startbericht sturen naar alle actieve deelnemers? Doe dit slechts één keer!')) return;
+    setWaBezig(true);
+    const { res, json } = await api('/api/notificaties', { actie: 'start' });
+    if (res.ok) toonMelding(`✅ Startberichten verzonden! ${json.deelnemers?.verzonden || 0} ontvangen, ${json.deelnemers?.mislukt || 0} mislukt.`);
+    else toonMelding(`❌ ${json.error || 'Fout'}`, 'fout');
+    setWaBezig(false);
+  }
+
   async function slaWaOp() {
     setWaBezig(true);
     const geldigeNummers = waMarshalls.filter(n => n.trim());
@@ -589,11 +598,24 @@ export default function AdminPage() {
 
           <Vak titel="🧪 Test notificatie" kleur={OR}>
             <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
-              Stuur een test kill-bericht om te controleren of alles werkt.
+              Stuur een test kill-bericht naar de marshalls om te controleren of alles werkt. Deelnemers ontvangen dit testbericht <strong style={{color:WIT}}>niet</strong>.
             </p>
-            <Btn onClick={testWaBericht} disabled={waBezig} kleur={OR}>📤 Stuur testbericht</Btn>
-            <p style={{ color:'#ffffff33', fontSize:11, marginTop:12 }}>
-              ⚠️ Dit stuurt een echt bericht naar alle deelnemers en marshalls met testdata.
+            <Btn onClick={testWaBericht} disabled={waBezig} kleur={OR}>📤 Stuur testbericht naar marshalls</Btn>
+          </Vak>
+
+          <Vak titel="🚀 Startbericht versturen" kleur={GR}>
+            <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
+              Stuur aan elke deelnemer zijn persoonlijke toegangscode, killcode en de link naar de app. Doe dit eenmalig bij de officiële start van het spel.
+            </p>
+            <div style={{ background:'#0a162888', borderRadius:10, padding:14, marginBottom:16, fontSize:13 }}>
+              <div style={{ color:GD, fontWeight:'bold', marginBottom:6 }}>Vereiste template: <code>gotcha_start_deelnemer</code></div>
+              <div style={{ color:'#ffffff88', background:'#000000aa', padding:10, borderRadius:8, fontStyle:'italic' }}>
+                🎯 Summer Gotcha 2026 is gestart! Welkom {"{{1}}"}. Jouw toegangscode: {"{{2}}"} — Jouw killcode (geheim!): {"{{3}}"} — App: {"{{4}}"}
+              </div>
+            </div>
+            <Btn onClick={stuurStartBerichtenAlle} disabled={waBezig} kleur={GR}>🚀 Stuur startbericht naar alle deelnemers</Btn>
+            <p style={{ color:'#ffffff33', fontSize:11, marginTop:10 }}>
+              ⚠️ Dit stuurt een persoonlijk bericht naar alle actieve deelnemers. Doe dit slechts één keer.
             </p>
           </Vak>
         </>}

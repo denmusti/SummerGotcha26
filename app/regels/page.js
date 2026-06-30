@@ -4,16 +4,46 @@ const BD = '#0D3B6E', AC = '#00B4D8', RD = '#C0392B', GD = '#F4D03F';
 const WIT = '#FFFFFF';
 
 const regels = [
-  { nr: 1, icon: '🎯', titel: 'Eén doelwit', tekst: 'Elke speler krijgt één geheim doelwit toegewezen via loting. Jij bent tegelijk ook het doelwit van iemand anders.' },
-  { nr: 2, icon: '🔫', titel: 'Eliminatie', tekst: 'Je elimineert je doelwit door hem of haar nat te spuiten met een waterpistool. Jij moet zelf de trekker overhalen — iemand anders inschakelen is niet toegestaan.' },
-  { nr: 3, icon: '👥', titel: 'Alleen zijn', tekst: 'Een eliminatie is enkel geldig als jij en je doelwit alleen zijn. Van zodra er een derde persoon aanwezig is, geldt de aanval niet.' },
-  { nr: 4, icon: '🔑', titel: 'Killcode', tekst: 'Elke speler heeft een geheime killcode. Na een eliminatie geef je de killcode van je slachtoffer door aan de marshall ter bevestiging.' },
-  { nr: 5, icon: '🔗', titel: 'Ketting', tekst: 'Na een kill neem je het doelwit van je slachtoffer over. Zo loopt het spel door tot er één speler overblijft.' },
-  { nr: 6, icon: '🥽', titel: 'Duikbril', tekst: 'Draag je de officiële duikbril met de glazen over je ogen? Dan ben je tijdelijk beschermd. Op het hoofd of om de nek telt niet.' },
-  { nr: 7, icon: '🏠', titel: 'Veilige zones', tekst: 'In Café NOBIS en Café NOBIS The Pool kan niemand worden geëlimineerd. Aanvallen aan de ingang zijn ook niet toegestaan.' },
-  { nr: 8, icon: '⚖️', titel: 'Marshall', tekst: 'De marshall is de scheidsrechter. Bij twijfel of betwisting beslist de marshall definitief. Zijn beslissing is onherroepelijk.' },
-  { nr: 9, icon: '📅', titel: 'Periode', tekst: 'Het spel loopt van 12 juli tot en met 20 september 2026. Eliminaties buiten deze periode tellen niet.' },
-  { nr: 10, icon: '🏆', titel: 'Winnaar', tekst: 'De laatste overlevende wint het spel. Veel succes — en kijk regelmatig achterom.' },
+  {
+    nr: 1, icon: '🎯', titel: 'Jouw doelwit',
+    tekst: 'Bij de start van het spel krijg je via de app één geheim doelwit toegewezen. Jij bent tegelijk ook het doelwit van een andere speler, zonder dat je weet wie dat is. Het doel is simpel: elimineer je doelwit voor je zelf geëlimineerd wordt.'
+  },
+  {
+    nr: 2, icon: '🔫', titel: 'Hoe elimineer je iemand?',
+    tekst: 'Je elimineert je doelwit door hem of haar nat te spuiten met een waterpistool. Jij moet zelf de trekker overhalen — een derde persoon inschakelen om te schieten is niet toegestaan en telt niet als geldige kill.'
+  },
+  {
+    nr: 3, icon: '👥', titel: 'Alleen zijn is verplicht',
+    tekst: 'Een eliminatie is enkel geldig als jij en je doelwit op dat moment alleen zijn. Van zodra er een derde persoon aanwezig is — wie dan ook — geldt de aanval niet en mag je doelwit gewoon verder.'
+  },
+  {
+    nr: 4, icon: '🔗', titel: 'De ketting gaat verder',
+    tekst: 'Zodra je je doelwit hebt geëlimineerd, neem je diens volgende doelwit over. Zo blijft de ketting gesloten en loopt het spel door. Je ontvangt via de app de gegevens van je nieuwe doelwit.'
+  },
+  {
+    nr: 5, icon: '🔑', titel: 'Killcode ter bevestiging',
+    tekst: 'Elke speler heeft een geheime killcode. Na een eliminatie kan de kill op drie manieren bevestigd worden: je geeft de killcode van je slachtoffer zelf in via de app, je stuurt hem door naar de marshall, of de marshall registreert de kill manueel. Zo wordt de eliminatie officieel en krijgt iedereen een melding.'
+  },
+  {
+    nr: 6, icon: '🥽', titel: 'De duikbril als schild',
+    tekst: 'Draag je de officiële duikbril met de glazen volledig over je ogen? Dan ben je tijdelijk beschermd en mag niemand je aanvallen. Let op: de bril op je hoofd dragen of om je nek hangen telt niet — alleen over de ogen.'
+  },
+  {
+    nr: 7, icon: '🏠', titel: 'Veilige zones',
+    tekst: 'Café NOBIS en Café NOBIS The Pool zijn veilige zones. Binnen deze locaties — en aan de ingang ervan — kan niemand worden aangevallen of geëlimineerd. Zodra je de deur uit stapt, ben je opnieuw in het spel.'
+  },
+  {
+    nr: 8, icon: '⚖️', titel: 'De marshall beslist',
+    tekst: 'De marshall is de officiële scheidsrechter van het spel. Bij betwiste situaties, twijfelgevallen of overtredingen beslist de marshall definitief. Zijn of haar beslissing is onherroepelijk en voor iedereen bindend.'
+  },
+  {
+    nr: 9, icon: '📅', titel: 'Speelperiode',
+    tekst: 'Het spel loopt van 12 juli tot en met 20 september 2026. Eliminaties buiten deze periode tellen niet mee. Wie op 20 september nog actief is, is officieel een overlevende.'
+  },
+  {
+    nr: 10, icon: '🏆', titel: 'De winnaar',
+    tekst: 'Het spel eindigt wanneer er nog één speler overblijft. Die persoon is de winnaar van Summer Gotcha 2026. Kijk goed om je heen, vertrouw niemand blindelings, en veel succes.'
+  },
 ];
 
 export default function RegelsPage() {
@@ -35,9 +65,8 @@ export default function RegelsPage() {
           <div key={r.nr} style={{
             display: 'flex', gap: 20, marginBottom: 20,
             background: `linear-gradient(135deg, ${BD}aa, #0a1628aa)`,
-            border: `1px solid ${i % 3 === 0 ? AC+'44' : '#ffffff15'}`,
+            border: `1px solid ${i % 3 === 0 ? AC + '44' : '#ffffff15'}`,
             borderRadius: 14, padding: '20px 24px',
-            boxShadow: i % 3 === 0 ? `0 0 15px ${AC}11` : 'none',
           }}>
             {/* Nummer */}
             <div style={{ flexShrink: 0, width: 48, height: 48, borderRadius: '50%', background: `linear-gradient(135deg, ${BD}, ${AC}44)`, border: `2px solid ${AC}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 'bold', color: AC }}>
@@ -45,26 +74,30 @@ export default function RegelsPage() {
             </div>
             {/* Tekst */}
             <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <span style={{ fontSize: 20 }}>{r.icon}</span>
                 <span style={{ color: WIT, fontWeight: 'bold', fontSize: 16 }}>{r.titel}</span>
               </div>
-              <p style={{ color: '#ffffffcc', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{r.tekst}</p>
+              <p style={{ color: '#ffffffcc', fontSize: 14, margin: 0, lineHeight: 1.7 }}>{r.tekst}</p>
             </div>
           </div>
         ))}
 
-        {/* Veilige zones extra highlight */}
+        {/* Onthoud altijd */}
         <div style={{ background: `linear-gradient(135deg, ${BD}cc, #1a0a2ecc)`, border: `2px solid ${GD}`, borderRadius: 14, padding: '20px 24px', marginTop: 8, marginBottom: 32 }}>
-          <div style={{ color: GD, fontSize: 13, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 }}>⚠️ Onthoud altijd</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {['Alleen zijn bij de aanval', 'Waterpistool — niets anders', 'Duikbril over de ogen = veilig', 'NOBIS & NOBIS The Pool = veilige zone', 'Marshall beslist bij twijfel'].map((item, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ color: GD, fontSize: 16 }}>★</span>
-                <span style={{ color: WIT, fontSize: 14 }}>{item}</span>
-              </div>
-            ))}
-          </div>
+          <div style={{ color: GD, fontSize: 13, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 14 }}>⚠️ Onthoud altijd</div>
+          {[
+            'Je moet alleen zijn met je doelwit bij de aanval.',
+            'Alleen een waterpistool is toegestaan — niets anders.',
+            'Duikbril over de ogen betekent beschermd.',
+            'Café NOBIS en NOBIS The Pool zijn altijd veilig.',
+            'De marshall beslist — altijd en definitief.',
+          ].map((item, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+              <span style={{ color: GD, fontSize: 14, marginTop: 2, flexShrink: 0 }}>★</span>
+              <span style={{ color: '#ffffffcc', fontSize: 14, lineHeight: 1.5 }}>{item}</span>
+            </div>
+          ))}
         </div>
 
         {/* Footer links */}

@@ -9,6 +9,10 @@ export default function MijnDoelwitPage() {
   const [data, setData] = useState(null);
   const [fout, setFout] = useState('');
   const [bezig, setBezig] = useState(false);
+  const [killcode, setKillcode] = useState('');
+  const [killBezig, setKillBezig] = useState(false);
+  const [killResultaat, setKillResultaat] = useState(null);
+  const [killBevestigd, setKillBevestigd] = useState(false);
 
   async function zoek() {
     if (!code.trim()) return;
@@ -23,6 +27,44 @@ export default function MijnDoelwitPage() {
       else setFout('❌ Ongeldige code. Controleer je persoonlijke code.');
     } catch { setFout('Verbindingsfout'); }
     finally { setBezig(false); }
+  }
+
+  async function controleerKill() {
+    if (!killcode.trim()) return;
+    setKillBezig(true); setKillResultaat(null);
+    try {
+      const res = await fetch('/api/deelnemers', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actie: 'killcode', killcode: killcode.trim() })
+      });
+      const json = await res.json();
+      if (res.ok) setKillResultaat({ geldig: true, slachtoffer: json.slachtoffer });
+      else setKillResultaat({ geldig: false, fout: json.error });
+    } catch { setKillResultaat({ geldig: false, fout: 'Verbindingsfout' }); }
+    finally { setKillBezig(false); }
+  }
+
+  async function bevestigKill() {
+    if (!killResultaat?.slachtoffer) return;
+    setKillBezig(true);
+    try {
+      const res = await fetch('/api/deelnemers', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actie: 'elimineren',
+          id: killResultaat.slachtoffer.id,
+          killcode_gebruikt: true,
+          omschrijving: `Kill geregistreerd via de app`
+        })
+      });
+      if (res.ok) {
+        setKillBevestigd(true);
+        setKillResultaat(null);
+        setKillcode('');
+        // Herlaad data
+        await zoek();
+      }
+    } finally { setKillBezig(false); }
   }
 
   return (
@@ -99,6 +141,58 @@ export default function MijnDoelwitPage() {
                 <div style={{ fontSize:48, marginBottom:12 }}>💀</div>
                 <div style={{ color:RD, fontSize:18, fontWeight:'bold' }}>Je bent geëlimineerd</div>
                 <div style={{ color:'#ffffff55', fontSize:13, marginTop:8 }}>Beter geluk volgende keer!</div>
+              </div>
+            )}
+
+            {/* Kill registreren */}
+            {data.status === 'actief' && data.spelGestart && (
+              <div style={{ background:`${BD}aa`, border:`2px solid ${RD}`, borderRadius:16, padding:24, marginBottom:16 }}>
+                <div style={{ color:RD, fontSize:12, letterSpacing:3, textTransform:'uppercase', marginBottom:14 }}>💀 Kill registreren</div>
+
+                {killBevestigd && (
+                  <div style={{ background:'#1E844922', border:'1px solid #1E8449', borderRadius:10, padding:14, marginBottom:14, textAlign:'center' }}>
+                    <div style={{ fontSize:32, marginBottom:6 }}>🎉</div>
+                    <div style={{ color:'#1E8449', fontWeight:'bold' }}>Kill bevestigd! Je nieuwe doelwit wordt geladen...</div>
+                  </div>
+                )}
+
+                {!killBevestigd && <>
+                  <p style={{ color:'#ffffff66', fontSize:13, margin:'0 0 14px' }}>
+                    Heb je je doelwit geëlimineerd? Voer de killcode van je slachtoffer in om de kill te bevestigen.
+                  </p>
+                  <div style={{ display:'flex', gap:10, marginBottom:12 }}>
+                    <input
+                      type="text"
+                      placeholder="Killcode slachtoffer"
+                      value={killcode}
+                      onChange={e => { setKillcode(e.target.value.toUpperCase()); setKillResultaat(null); }}
+                      maxLength={6}
+                      style={{ flex:1, padding:'10px 14px', borderRadius:8, border:`1px solid ${killResultaat?.geldig===false?RD:'#ffffff33'}`, background:'#0a1628', color:WIT, fontSize:16, textAlign:'center', letterSpacing:4, outline:'none' }}
+                    />
+                    <button onClick={controleerKill} disabled={killBezig || killcode.length < 4}
+                      style={{ background:killBezig?'#333':RD, color:WIT, border:'none', borderRadius:8, padding:'10px 18px', fontSize:14, fontWeight:'bold', cursor:killBezig?'not-allowed':'pointer' }}>
+                      {killBezig ? '...' : '🔍'}
+                    </button>
+                  </div>
+
+                  {killResultaat?.geldig && (
+                    <div style={{ background:'#1E844922', border:'1px solid #1E8449', borderRadius:10, padding:14, marginBottom:12 }}>
+                      <div style={{ color:'#1E8449', fontWeight:'bold', marginBottom:10 }}>
+                        ✅ Killcode geldig — slachtoffer: <strong>{killResultaat.slachtoffer.naam}</strong>
+                      </div>
+                      <button onClick={bevestigKill} disabled={killBezig}
+                        style={{ background:RD, color:WIT, border:'none', borderRadius:8, padding:'10px 20px', fontSize:14, fontWeight:'bold', cursor:killBezig?'not-allowed':'pointer', width:'100%' }}>
+                        {killBezig ? 'Bezig...' : '💀 Bevestig kill'}
+                      </button>
+                    </div>
+                  )}
+
+                  {killResultaat?.geldig === false && (
+                    <div style={{ color:RD, background:'#C0392B22', borderRadius:10, padding:12, fontSize:13 }}>
+                      ❌ {killResultaat.fout}
+                    </div>
+                  )}
+                </>}
               </div>
             )}
 
