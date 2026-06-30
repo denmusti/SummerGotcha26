@@ -61,6 +61,8 @@ export default function AdminPage() {
   const [marshallNaam, setMarshallNaam] = useState('Marshall 1');
   const [aanpS, setAanpS] = useState('');
   const [aanpD, setAanpD] = useState('');
+  const [sw1, setSw1] = useState('');
+  const [sw2, setSw2] = useState('');
   const [testLotingPreview, setTestLotingPreview] = useState(null);
 
   // Eliminaties
