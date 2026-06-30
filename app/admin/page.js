@@ -61,8 +61,6 @@ export default function AdminPage() {
   const [marshallNaam, setMarshallNaam] = useState('Marshall 1');
   const [aanpS, setAanpS] = useState('');
   const [aanpD, setAanpD] = useState('');
-  const [sw1, setSw1] = useState('');
-  const [sw2, setSw2] = useState('');
   const [testLotingPreview, setTestLotingPreview] = useState(null);
 
   // Eliminaties
@@ -209,6 +207,46 @@ export default function AdminPage() {
     setBezig(true);
     const { json } = await api('/api/loting', { actie:'valideer' });
     setLotingStatus(json); setBezig(false);
+  }
+
+  async function switchViaMarshall() {
+    if (!sw1 || !sw2 || sw1 === sw2) { toonMelding('❌ Kies 2 verschillende deelnemers', 'fout'); return; }
+    if (!marshallNaam.trim()) { toonMelding('❌ Vul de marshall naam in', 'fout'); return; }
+    const gebruikt = data?.marshallAanpassingen?.[marshallNaam] || 0;
+    if (gebruikt >= 3) { toonMelding('❌ Limiet van 3 aanpassingen bereikt voor deze marshall', 'fout'); return; }
+    setBezig(true);
+    const { res, json } = await api('/api/loting', { actie:'aanpassing', schutter_id:Number(sw1), nieuw_doelwit_id:Number(sw2), marshall_naam:marshallNaam });
+    if (res.ok) {
+      toonMelding(`✅ Doelwitten gewisseld. Nog ${json.aanpassingenResterend} aanpassing(en) over voor ${marshallNaam}.`);
+      await laadDeelnemers(); await laadData();
+      setSw1(''); setSw2('');
+    } else toonMelding(`❌ ${json.error}`, 'fout');
+    setBezig(false);
+  }
+
+  async function pasAan() {
+    if (!aanpS || !aanpD || !marshallNaam) { toonMelding('❌ Vul alle velden in', 'fout'); return; }
+    setBezig(true);
+    const { res, json } = await api('/api/loting', { actie:'aanpassing', schutter_id:Number(aanpS), nieuw_doelwit_id:Number(aanpD), marshall_naam:marshallNaam });
+    if (res.ok) { toonMelding(`✅ Aanpassing doorgevoerd. Nog ${json.aanpassingenResterend} over.`); await laadDeelnemers(); setAanpS(''); setAanpD(''); }
+    else toonMelding(`❌ ${json.error}`, 'fout');
+    setBezig(false);
+  }
+
+
+  async function switchViaMarshall() {
+    if (!sw1 || !sw2 || sw1 === sw2) { toonMelding('❌ Kies 2 verschillende deelnemers', 'fout'); return; }
+    if (!marshallNaam.trim()) { toonMelding('❌ Vul de marshall naam in', 'fout'); return; }
+    const gebruikt = data?.marshallAanpassingen?.[marshallNaam] || 0;
+    if (gebruikt >= 3) { toonMelding('❌ Limiet van 3 aanpassingen bereikt voor deze marshall', 'fout'); return; }
+    setBezig(true);
+    const { res, json } = await api('/api/loting', { actie:'aanpassing', schutter_id:Number(sw1), nieuw_doelwit_id:Number(sw2), marshall_naam:marshallNaam });
+    if (res.ok) {
+      toonMelding(`✅ Doelwitten gewisseld. Nog ${json.aanpassingenResterend} aanpassing(en) over voor ${marshallNaam}.`);
+      await laadDeelnemers(); await laadData();
+      setSw1(''); setSw2('');
+    } else toonMelding(`❌ ${json.error}`, 'fout');
+    setBezig(false);
   }
 
   async function pasAan() {
@@ -493,34 +531,46 @@ export default function AdminPage() {
             </Vak>
           )}
 
-          <Vak titel="🔀 Deelnemers switchen" kleur={OR}>
-            <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>Wissel de doelwitten van 2 deelnemers als de koppeling te makkelijk is.</p>
+  </Vak>
+
+          <Vak titel="🔧 Marshall aanpassing — doelwitten wisselen (max. 3 per marshall)">
+            <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
+              Wissel de doelwitten van 2 deelnemers. De ketting blijft gesloten. Elke marshall mag dit maximaal 3 keer doen.
+            </p>
+            <Inp label="Marshall naam" value={marshallNaam} onChange={setMarshallNaam} />
+            {marshallNaam && (() => {
+              const gebruikt = data?.marshallAanpassingen?.[marshallNaam] || 0;
+              const resterend = 3 - gebruikt;
+              return (
+                <div style={{ background: resterend > 0 ? '#1E844922' : '#C0392B22', border: `1px solid ${resterend > 0 ? GR : RD}`, borderRadius: 8, padding: '8px 14px', marginBottom: 16, fontSize: 13 }}>
+                  <span style={{ color: resterend > 0 ? GR : RD, fontWeight: 'bold' }}>
+                    {resterend > 0 ? `✅ ${resterend} van 3 aanpassingen resterend` : '❌ Limiet bereikt — geen aanpassingen meer mogelijk'}
+                  </span>
+                </div>
+              );
+            })()}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
               <Sel label="Deelnemer 1" value={sw1} onChange={setSw1}>
-                <option value="">Kies...</option>
+                <option value="">Kies deelnemer...</option>
                 {actief.map(d=><option key={d.id} value={d.id}>#{d.nummer} {d.voornaam} {d.familienaam}</option>)}
               </Sel>
               <Sel label="Deelnemer 2" value={sw2} onChange={setSw2}>
-                <option value="">Kies...</option>
+                <option value="">Kies deelnemer...</option>
                 {actief.filter(d=>d.id!==Number(sw1)).map(d=><option key={d.id} value={d.id}>#{d.nummer} {d.voornaam} {d.familienaam}</option>)}
               </Sel>
             </div>
-            <Btn onClick={switchDeelnemers} disabled={bezig||!sw1||!sw2} kleur={OR}>🔀 Wissel doelwitten</Btn>
-          </Vak>
-
-          <Vak titel="🔧 Marshall aanpassing">
-            <Inp label="Marshall naam" value={marshallNaam} onChange={setMarshallNaam} />
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-              <Sel label="Schutter" value={aanpS} onChange={setAanpS}>
-                <option value="">Kies schutter...</option>
-                {actief.map(d=><option key={d.id} value={d.id}>#{d.nummer} {d.voornaam} {d.familienaam}</option>)}
-              </Sel>
-              <Sel label="Nieuw doelwit" value={aanpD} onChange={setAanpD}>
-                <option value="">Kies doelwit...</option>
-                {actief.filter(d=>d.id!==Number(aanpS)).map(d=><option key={d.id} value={d.id}>#{d.nummer} {d.voornaam} {d.familienaam}</option>)}
-              </Sel>
-            </div>
-            <Btn onClick={pasAan} disabled={bezig||!aanpS||!aanpD} kleur={OR}>🔧 Aanpassing doorvoeren</Btn>
+            {sw1 && sw2 && (() => {
+              const d1 = actief.find(d=>d.id===Number(sw1));
+              const d2 = actief.find(d=>d.id===Number(sw2));
+              return d1 && d2 && d1.doelwit && d2.doelwit ? (
+                <div style={{ background:'#0a162888', borderRadius:10, padding:12, marginBottom:16, fontSize:13, color:'#ffffff88' }}>
+                  Na de wissel:<br/>
+                  <span style={{color:WIT}}>{d1.voornaam} {d1.familienaam}</span> → <span style={{color:OR}}>{d2.doelwit.voornaam} {d2.doelwit.familienaam}</span><br/>
+                  <span style={{color:WIT}}>{d2.voornaam} {d2.familienaam}</span> → <span style={{color:OR}}>{d1.doelwit.voornaam} {d1.doelwit.familienaam}</span>
+                </div>
+              ) : null;
+            })()}
+            <Btn onClick={switchViaMarshall} disabled={bezig||!sw1||!sw2||!marshallNaam.trim()} kleur={OR}>🔀 Wissel doelwitten</Btn>
           </Vak>
 
           <Vak titel="📋 Huidige koppelingen">

@@ -47,6 +47,7 @@ export async function GET() {
     topschutterAantal: topschutter,
     startDatum: stats.start_datum,
     eindDatum: stats.eind_datum,
+    marshallAanpassingen: stats.marshall_aanpassingen || {},
     tijdlijn: tijdlijn.map(t => ({
       id: t.id,
       tijdstip: t.tijdstip,

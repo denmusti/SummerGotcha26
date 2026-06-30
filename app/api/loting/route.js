@@ -58,11 +58,30 @@ export async function POST(request) {
 
     // Testmodus: stuur koppeling terug zonder op te slaan
     if (testModus) {
-      const preview = deelnemers.map((schutter, i) => ({
-        schutter_id: schutter.id,
-        schutter_naam: `${schutter.voornaam} ${schutter.familienaam}`,
-        doelwit_naam: `${deelnemers[doelwit_indices[i]].voornaam} ${deelnemers[doelwit_indices[i]].familienaam}`,
-      }));
+      // Bouw koppeling op als map
+      const koppelingMap = {};
+      deelnemers.forEach((schutter, i) => {
+        koppelingMap[schutter.id] = {
+          schutter_naam: `${schutter.voornaam} ${schutter.familienaam}`,
+          doelwit_id: deelnemers[doelwit_indices[i]].id,
+          doelwit_naam: `${deelnemers[doelwit_indices[i]].voornaam} ${deelnemers[doelwit_indices[i]].familienaam}`,
+        };
+      });
+
+      // Volg de ketting vanaf de eerste deelnemer
+      const preview = [];
+      let huidigId = deelnemers[0].id;
+      const bezocht = new Set();
+      while (!bezocht.has(huidigId) && koppelingMap[huidigId]) {
+        bezocht.add(huidigId);
+        const koppeling = koppelingMap[huidigId];
+        preview.push({
+          schutter_naam: koppeling.schutter_naam,
+          doelwit_naam: koppeling.doelwit_naam,
+        });
+        huidigId = koppeling.doelwit_id;
+      }
+
       return Response.json({ success: true, aantalDeelnemers: deelnemers.length, testModus: true, preview });
     }
 
@@ -76,17 +95,15 @@ export async function POST(request) {
     return Response.json({ success: true, aantalDeelnemers: deelnemers.length });
   }
 
-  // Aanpassing doorvoeren (marshall)
+  // Marshall aanpassing — wissel doelwitten van 2 deelnemers
   if (actie === 'aanpassing') {
     const { schutter_id, nieuw_doelwit_id, marshall_naam } = body;
+    // schutter_id = deelnemer 1, nieuw_doelwit_id = deelnemer 2
 
     if (!marshall_naam) {
       return Response.json({ error: 'Marshall naam is verplicht' }, { status: 400 });
     }
 
-    // Tel bestaande aanpassingen van deze marshall
-    // We houden dit bij in een aparte tabel of via een tijdlijn-notitie
-    // Eenvoudige oplossing: bewaar in stats als JSON
     const { data: statsData } = await supabase.from('stats').select('*').eq('id', 1).single();
     const aanpassingen = statsData.marshall_aanpassingen || {};
     const huidigAantal = aanpassingen[marshall_naam] || 0;
@@ -95,12 +112,22 @@ export async function POST(request) {
       return Response.json({ error: `${marshall_naam} heeft het maximum van 3 aanpassingen bereikt` }, { status: 400 });
     }
 
-    // Aanpassing doorvoeren
-    const { error } = await supabase.from('deelnemers')
-      .update({ doelwit_id: nieuw_doelwit_id })
-      .eq('id', schutter_id);
+    // Haal huidige doelwitten op van beide deelnemers
+    const { data: d1 } = await supabase.from('deelnemers').select('doelwit_id').eq('id', schutter_id).single();
+    const { data: d2 } = await supabase.from('deelnemers').select('doelwit_id').eq('id', nieuw_doelwit_id).single();
 
-    if (error) return Response.json({ error: error.message }, { status: 500 });
+    if (!d1 || !d2) return Response.json({ error: 'Deelnemer niet gevonden' }, { status: 404 });
+
+    // Wissel doelwitten
+    await supabase.from('deelnemers').update({ doelwit_id: d2.doelwit_id }).eq('id', schutter_id);
+    await supabase.from('deelnemers').update({ doelwit_id: d1.doelwit_id }).eq('id', nieuw_doelwit_id);
+
+    // Fix: wie had d1 als doelwit → krijgt nu d2 (en vice versa)
+    const { data: schutterVanD1 } = await supabase.from('deelnemers').select('id').eq('doelwit_id', schutter_id).eq('status', 'actief').neq('id', schutter_id).neq('id', nieuw_doelwit_id);
+    const { data: schutterVanD2 } = await supabase.from('deelnemers').select('id').eq('doelwit_id', nieuw_doelwit_id).eq('status', 'actief').neq('id', schutter_id).neq('id', nieuw_doelwit_id);
+
+    if (schutterVanD1?.length) await supabase.from('deelnemers').update({ doelwit_id: nieuw_doelwit_id }).eq('id', schutterVanD1[0].id);
+    if (schutterVanD2?.length) await supabase.from('deelnemers').update({ doelwit_id: schutter_id }).eq('id', schutterVanD2[0].id);
 
     // Teller ophogen
     aanpassingen[marshall_naam] = huidigAantal + 1;
