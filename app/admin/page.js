@@ -110,8 +110,8 @@ export default function AdminPage() {
     setData(json); setTotaal(json.totaalDeelnemers); setLevenden(json.levenden); setTopschutter(json.topschutterAantal);
   }
 
-  async function laadDeelnemers() {
-    const geldigWw = isMarshall ? marshallWw : ww;
+  async function laadDeelnemers(overrideWw) {
+    const geldigWw = overrideWw || (isMarshall ? marshallWw : ww);
     const res = await fetch(`/api/deelnemers?wachtwoord=${encodeURIComponent(geldigWw)}`);
     if (res.ok) setDeelnemers(await res.json());
   }
@@ -138,7 +138,7 @@ export default function AdminPage() {
       setIsMarshall(true); setIsAdmin(false); setIngelogd(true);
       setMarshallInfo(json.marshall);
       setMarshallNaam(json.marshall.naam);
-      await laadData(); await laadDeelnemers();
+      await laadData(); await laadDeelnemers(marshallWw);
     }
     setBezig(false);
   }
