@@ -126,7 +126,11 @@ export async function POST(request) {
     }
 
     // Reset aanpassingstellers van alle marshalls
-    await supabase.from('marshalls').update({ aanpassingen: 0 });
+    const { data: alleMarshalls } = await supabase.from('marshalls').select('id');
+    if (alleMarshalls?.length) {
+      const ids = alleMarshalls.map(m => m.id);
+      await supabase.from('marshalls').update({ aanpassingen: 0 }).in('id', ids);
+    }
 
     return Response.json({ success: true, aantalDeelnemers: deelnemers.length });
   }
