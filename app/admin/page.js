@@ -216,14 +216,9 @@ export default function AdminPage() {
         setTestLotingPreview(null);
         toonMelding(`✅ Loting gegenereerd voor ${json.aantalDeelnemers} deelnemers!`);
         await laadDeelnemers();
-        // Ververs marshallInfo EN marshalls lijst om tellers te resetten
-        await laadMarshalls();
-        const resM = await fetch(`/api/check-wachtwoord?wachtwoord=${encodeURIComponent(ww)}`);
-        if (resM.ok) {
-          const jM = await resM.json();
-          setMarshallInfo(jM.marshall);
-          setMarshallNaam(jM.marshall.naam);
-        }
+        // Reset tellers direct in de state — database is al gereset
+        setMarshallInfo(prev => prev ? { ...prev, aanpassingen: 0 } : prev);
+        setMarshallLijst(prev => prev.map(m => ({ ...m, aanpassingen: 0 })));
       }
     }
     else toonMelding(`❌ ${json.error}`, 'fout');
