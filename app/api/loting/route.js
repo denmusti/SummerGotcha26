@@ -125,6 +125,9 @@ export async function POST(request) {
       await supabase.from('deelnemers').update({ doelwit_id: doelwit.id }).eq('id', schutter.id);
     }
 
+    // Reset aanpassingstellers van alle marshalls
+    await supabase.from('marshalls').update({ aanpassingen: 0 });
+
     return Response.json({ success: true, aantalDeelnemers: deelnemers.length });
   }
 
