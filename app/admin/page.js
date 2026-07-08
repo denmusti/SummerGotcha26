@@ -238,7 +238,7 @@ export default function AdminPage() {
     if (res.ok) {
       toonMelding(`✅ Doelwitten gewisseld. Nog ${json.aanpassingenResterend} aanpassing(en) over.`);
       await laadDeelnemers(); await laadData(); await laadMarshalls();
-      if (isMarshall) setMarshallInfo(prev => ({ ...prev, aanpassingen: prev.aanpassingen + 1 }));
+      setMarshallInfo(prev => prev ? ({ ...prev, aanpassingen: (prev.aanpassingen||0) + 1 }) : prev);
       setSw1(''); setSw2('');
     } else toonMelding(`❌ ${json.error}`, 'fout');
     setBezig(false);
@@ -264,7 +264,7 @@ export default function AdminPage() {
     if (res.ok) {
       toonMelding(`✅ Doelwitten gewisseld. Nog ${json.aanpassingenResterend} aanpassing(en) over.`);
       await laadDeelnemers(); await laadData(); await laadMarshalls();
-      if (isMarshall) setMarshallInfo(prev => ({ ...prev, aanpassingen: prev.aanpassingen + 1 }));
+      setMarshallInfo(prev => prev ? ({ ...prev, aanpassingen: (prev.aanpassingen||0) + 1 }) : prev);
       setSw1(''); setSw2('');
     } else toonMelding(`❌ ${json.error}`, 'fout');
     setBezig(false);
@@ -610,8 +610,8 @@ export default function AdminPage() {
               Wissel de doelwitten van 2 deelnemers. De ketting blijft gesloten. Elke marshall mag dit maximaal 3 keer doen.
             </p>
             <Inp label="Marshall naam" value={marshallNaam} onChange={setMarshallNaam} />
-            {(marshallNaam || isMarshall) && (() => {
-              const gebruikt = isMarshall ? (marshallInfo?.aanpassingen || 0) : (marshallLijst.find(m=>m.naam===marshallNaam)?.aanpassingen || 0);
+            {marshallInfo && (() => {
+              const gebruikt = marshallInfo?.aanpassingen || 0;
               const resterend = 3 - gebruikt;
               return (
                 <div style={{ background: resterend > 0 ? '#1E844922' : '#C0392B22', border: `1px solid ${resterend > 0 ? GR : RD}`, borderRadius: 8, padding: '8px 14px', marginBottom: 16, fontSize: 13 }}>
