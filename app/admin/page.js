@@ -216,6 +216,10 @@ export default function AdminPage() {
         setTestLotingPreview(null);
         toonMelding(`✅ Loting gegenereerd voor ${json.aantalDeelnemers} deelnemers!`);
         await laadDeelnemers();
+        // Ververs marshallInfo om teller te resetten
+        const resM = await fetch(`/api/check-wachtwoord?wachtwoord=${encodeURIComponent(ww)}`);
+        if (resM.ok) { const jM = await resM.json(); setMarshallInfo(jM.marshall); }
+        if (isAdmin) await laadMarshalls();
       }
     }
     else toonMelding(`❌ ${json.error}`, 'fout');
@@ -609,7 +613,9 @@ export default function AdminPage() {
             <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
               Wissel de doelwitten van 2 deelnemers. De ketting blijft gesloten. Elke marshall mag dit maximaal 3 keer doen.
             </p>
-            <Inp label="Marshall naam" value={marshallNaam} onChange={setMarshallNaam} />
+            <div style={{ color:WIT, fontSize:13, marginBottom:12 }}>
+              Marshall: <strong style={{color:AC}}>{marshallInfo?.naam}</strong>
+            </div>
             {marshallInfo && (() => {
               const gebruikt = marshallInfo?.aanpassingen || 0;
               const resterend = 3 - gebruikt;
