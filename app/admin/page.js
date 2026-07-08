@@ -216,10 +216,14 @@ export default function AdminPage() {
         setTestLotingPreview(null);
         toonMelding(`✅ Loting gegenereerd voor ${json.aantalDeelnemers} deelnemers!`);
         await laadDeelnemers();
-        // Ververs marshallInfo om teller te resetten
+        // Ververs marshallInfo EN marshalls lijst om tellers te resetten
+        await laadMarshalls();
         const resM = await fetch(`/api/check-wachtwoord?wachtwoord=${encodeURIComponent(ww)}`);
-        if (resM.ok) { const jM = await resM.json(); setMarshallInfo(jM.marshall); }
-        if (isAdmin) await laadMarshalls();
+        if (resM.ok) {
+          const jM = await resM.json();
+          setMarshallInfo(jM.marshall);
+          setMarshallNaam(jM.marshall.naam);
+        }
       }
     }
     else toonMelding(`❌ ${json.error}`, 'fout');
