@@ -87,6 +87,7 @@ export default function AdminPage() {
 
   // Herversturing kill bericht
   const [herversturBezig, setHerversturBezig] = useState(false);
+  const [killsLijst, setKillsLijst] = useState([]);
 
   // Admin preview
   const [previewDeelnemer, setPreviewDeelnemer] = useState(null);
@@ -825,25 +826,26 @@ export default function AdminPage() {
             <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
               Kies een kill en verstuur het bericht opnieuw. Deelnemers krijgen een anoniem bericht, marshalls krijgen alle details.
             </p>
-            {data?.tijdlijn?.filter(t => t.tekst.includes('uitgeschakeld')).length === 0
+            {killsLijst.length === 0
               ? <div style={{ color:'#ffffff33', fontStyle:'italic' }}>Nog geen kills geregistreerd.</div>
-              : data?.tijdlijn?.filter(t => t.tekst.includes('uitgeschakeld')).map(kill => (
+              : killsLijst.map(kill => (
                 <div key={kill.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid #ffffff11', flexWrap:'wrap' }}>
                   <div style={{ flex:1 }}>
-                    <div style={{ color:WIT, fontSize:14 }}>{kill.tekst}</div>
-                    <div style={{ color:'#ffffff44', fontSize:11 }}>{new Date(kill.tijdstip).toLocaleString('nl-BE')}</div>
-                    <div style={{ color:'#ffffff55', fontSize:11, marginTop:2 }}>
-                      📢 Deelnemers: naam slachtoffer + aantal actieve spelers &nbsp;|&nbsp; 👮 Marshalls: slachtoffer + schutter + nieuw doelwit + tijdstip
+                    <div style={{ color:WIT, fontSize:14, fontWeight:'bold' }}>💀 {kill.slachtoffer}</div>
+                    <div style={{ color:'#ffffff66', fontSize:13 }}>Uitgeschakeld door: {kill.schutter}</div>
+                    <div style={{ color:'#ffffff44', fontSize:11, marginTop:2 }}>{new Date(kill.tijdstip).toLocaleString('nl-BE')}</div>
+                    <div style={{ color:'#ffffff44', fontSize:11, marginTop:2 }}>
+                      📢 Deelnemers ontvangen: naam slachtoffer + aantal actieve spelers<br/>
+                      👮 Marshalls ontvangen: slachtoffer + schutter + tijdstip
                     </div>
                   </div>
                   <Btn
                     onClick={async () => {
                       setHerversturBezig(true);
-                      const naam = kill.tekst.replace('💀 ', '').replace(/ is uitgeschakeld.*/, '');
                       const { res, json } = await api('/api/notificaties', {
-                        schutter: 'Onbekend',
-                        slachtoffer: naam,
-                        nieuwDoelwit: 'Onbekend',
+                        schutter: kill.schutter,
+                        slachtoffer: kill.slachtoffer,
+                        nieuwDoelwit: '',
                         tijdstip: kill.tijdstip,
                       });
                       if (res.ok) toonMelding(`✅ Verstuurd! Deelnemers: ${json.deelnemers?.verzonden || 0}, Marshalls: ${json.marshalls?.verzonden || 0}`);

@@ -101,7 +101,7 @@ export async function POST(request) {
 
     const resultaten = await Promise.all([
       deelTels.length > 0
-        ? stuurKillPubliek(deelTels, stats?.levenden || 0)
+        ? stuurKillPubliek(deelTels, stats?.levenden || 0, slachtoffer)
         : Promise.resolve({ verzonden: 0, mislukt: 0 }),
       marshallTels.length > 0
         ? stuurKillMarshall(marshallTels, slachtoffer, schutter, nieuwDoelwit, tijdstip)
