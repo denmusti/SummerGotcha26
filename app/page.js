@@ -102,19 +102,23 @@ function TijdlijnItem({ item }) {
   return (
     <div style={{
       display: 'flex',
-      alignItems: 'flex-start',
-      gap: 16,
+      alignItems: 'center',
+      gap: 14,
       padding: '14px 0',
       borderBottom: '1px solid #ffffff11',
     }}>
       <div style={{
-        width: 36, height: 36, borderRadius: '50%',
-        background: `linear-gradient(135deg, ${ROOD}, ${BLAUW_DONKER})`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 16, flexShrink: 0
-      }}>💧</div>
+        width: 48, height: 56, borderRadius: 8, overflow: 'hidden', flexShrink: 0,
+        background: `linear-gradient(135deg, ${ROOD}44, ${BLAUW_DONKER})`,
+        border: `1px solid ${ROOD}66`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22
+      }}>
+        {item.foto_url
+          ? <img src={item.foto_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : '🔫'}
+      </div>
       <div style={{ flex: 1 }}>
-        <div style={{ color: WIT, fontSize: 15 }}>{item.tekst}</div>
+        <div style={{ color: WIT, fontSize: 15, fontWeight: item.tekst.includes('uitgeschakeld') ? 'bold' : 'normal' }}>{item.tekst}</div>
         <div style={{ color: '#ffffff44', fontSize: 12, marginTop: 4 }}>{geleden()}</div>
       </div>
     </div>
