@@ -4,7 +4,6 @@ import { getSupabaseServer } from '../../../lib/supabase';
 export async function GET() {
   const supabase = getSupabaseServer();
 
-  // Haal alles parallel op — tellers live berekend vanuit deelnemers tabel
   const [
     { data: stats, error: statsErr },
     { data: tijdlijn, error: tijdlijnErr },
@@ -27,7 +26,6 @@ export async function GET() {
   const totaal = alleDeelnemers?.length || 0;
   const levenden = levendeDeelnemers?.length || 0;
 
-  // Bereken topschutter correct
   const killData = topKills?.data || [];
   const tellerPerSchutter = {};
   killData.forEach(k => { tellerPerSchutter[k.schutter_id] = (tellerPerSchutter[k.schutter_id] || 0) + 1; });
@@ -35,7 +33,6 @@ export async function GET() {
   const aantalTopschutters = Object.values(tellerPerSchutter).filter(v => v === maxKills).length;
   const topschutter = maxKills;
 
-  // Sync tellers terug naar stats tabel (stille achtergrondtaak)
   supabase.from('stats').update({
     totaal_deelnemers: totaal,
     levenden: levenden,
@@ -65,7 +62,6 @@ export async function POST(request) {
     const body = await request.json();
     const supabase = getSupabaseServer();
 
-    // Wachtwoord controleren
     const { data: huidigeStats, error: leesErr } = await supabase
       .from('stats').select('wachtwoord').eq('id', 1).single();
 
@@ -78,7 +74,6 @@ export async function POST(request) {
       return Response.json({ error: 'Ongeldig wachtwoord' }, { status: 401 });
     }
 
-    // Nieuwe eliminatie toevoegen aan tijdlijn
     if (body.nieuwEliminatie) {
       const { error } = await supabase
         .from('tijdlijn')
@@ -89,7 +84,6 @@ export async function POST(request) {
       }
     }
 
-    // Tijdlijn item verwijderen
     if (body.verwijderTijdlijnId) {
       const { error } = await supabase
         .from('tijdlijn')
@@ -101,32 +95,31 @@ export async function POST(request) {
       }
     }
 
-    // Statistieken updaten
     const statsUpdate = {};
     if (body.totaalDeelnemers !== undefined) statsUpdate.totaal_deelnemers = body.totaalDeelnemers;
     if (body.levenden !== undefined) statsUpdate.levenden = body.levenden;
     if (body.topschutterAantal !== undefined) statsUpdate.topschutter_aantal = body.topschutterAantal;
-    // Automatische tijdlijnberichten bij start/stop
+
     if (body.startDatum !== undefined) {
       const oudeStart = new Date(stats.start_datum);
       const nieuweStart = new Date(body.startDatum);
       const nu = new Date();
-      // Startdatum wordt nu of in het verleden gezet → spel start
       if (nieuweStart <= nu && oudeStart > nu) {
         await supabase.from('tijdlijn').insert({ tekst: '🚀 Het spel is officieel gestart! Kijk om je heen...' });
       }
       statsUpdate.start_datum = body.startDatum;
     }
+
     if (body.eindDatum !== undefined) {
       const oudeEind = new Date(stats.eind_datum);
       const nieuwEind = new Date(body.eindDatum);
       const nu = new Date();
-      // Einddatum wordt nu of in het verleden gezet → spel stopt
       if (nieuwEind <= nu && oudeEind > nu) {
         await supabase.from('tijdlijn').insert({ tekst: '🏁 Het spel is afgelopen! De overlevenden zijn bekend.' });
       }
       statsUpdate.eind_datum = body.eindDatum;
     }
+
     if (body.marshallTelefoons !== undefined) statsUpdate.marshall_telefoons = body.marshallTelefoons;
 
     if (Object.keys(statsUpdate).length > 0) {
@@ -147,4 +140,3 @@ export async function POST(request) {
     return Response.json({ error: 'Fout bij verwerken' }, { status: 500 });
   }
 }
-// Tue Jul 14 15:56:39 UTC 2026
