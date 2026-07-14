@@ -85,6 +85,9 @@ export default function AdminPage() {
   const [waBericht, setWaBericht] = useState('');
   const [waBezig, setWaBezig] = useState(false);
 
+  // Herversturing kill bericht
+  const [herversturBezig, setHerversturBezig] = useState(false);
+
   // Admin preview
   const [previewDeelnemer, setPreviewDeelnemer] = useState(null);
   const [previewForceGestart, setPreviewForceGestart] = useState(false);
@@ -357,6 +360,20 @@ export default function AdminPage() {
     });
     if (res.ok) { toonMelding(`✅ Teller van ${naam} gereset`); await laadMarshalls(); }
     setBezig(false);
+  }
+
+  async function herversturKillBericht() {
+    if (!confirm('Kill bericht opnieuw versturen naar alle actieve deelnemers en marshalls?')) return;
+    setHerversturBezig(true);
+    const { res, json } = await api('/api/notificaties', {
+      schutter: 'Onbekend',
+      slachtoffer: 'Otto Bourgonjon',
+      nieuwDoelwit: 'Onbekend',
+      tijdstip: new Date().toISOString(),
+    });
+    if (res.ok) toonMelding(`✅ Kill bericht verstuurd! Deelnemers: ${json.deelnemers?.verzonden || 0}, Marshalls: ${json.marshalls?.verzonden || 0}`);
+    else toonMelding(`❌ ${json.error || 'Fout'}`, 'fout');
+    setHerversturBezig(false);
   }
 
   async function stuurStartBerichtenAlle() {
@@ -802,6 +819,15 @@ export default function AdminPage() {
                 ⚠️ Vercel kan de cron tot 59 minuten later uitvoeren — berichten kunnen dus aankomen tussen 00:00 en 00:59.
               </div>
             </div>
+          </Vak>
+
+          <Vak titel="🔁 Kill bericht opnieuw versturen" kleur={RD}>
+            <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
+              Stuur het kill bericht opnieuw naar alle actieve deelnemers en marshalls. Gebruik dit als het bericht eerder niet aankwam.
+            </p>
+            <Btn onClick={herversturKillBericht} disabled={herversturBezig} kleur={RD}>
+              🔁 Verstuur kill bericht opnieuw
+            </Btn>
           </Vak>
 
           <Vak titel="🚀 Startbericht manueel versturen" kleur={GR}>
