@@ -177,17 +177,6 @@ export default function AdminPage() {
     setBezig(false);
   }
 
-  async function stuurDeelnemerBericht(deelnemer) {
-    setBezig(true);
-    const { res, json } = await api('/api/notificaties', {
-      actie: 'startEen',
-      deelnemerId: deelnemer.id,
-    });
-    if (res.ok) toonMelding(`✅ Bericht verstuurd naar ${deelnemer.voornaam}!`);
-    else toonMelding(`❌ ${json.error || json.reden || 'Fout'}`, 'fout');
-    setBezig(false);
-  }
-
   async function voegDeelnemerToe() {
     if (!nVn.trim() || !nFn.trim()) { toonMelding('❌ Voornaam en familienaam zijn verplicht', 'fout'); return; }
     setBezig(true);
@@ -584,6 +573,7 @@ export default function AdminPage() {
                   </div>
                 </div>
                 {d.doelwit && <div style={{ color:RD, fontSize:12 }}>🎯 {d.doelwit.voornaam} {d.doelwit.familienaam}</div>}
+                <Btn onClick={()=>stuurDeelnemerBericht(d)} kleur={BM} klein>📱 Stuur code</Btn>
                 <Btn onClick={()=>verwijderDeelnemer(d.id,`${d.voornaam} ${d.familienaam}`)} kleur={RD} klein>✕</Btn>
               </div>
             ))}
