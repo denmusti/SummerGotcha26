@@ -26,6 +26,22 @@ export async function POST(request) {
 
     if (error || !deelnemer) return Response.json({ error: 'Ongeldige code' }, { status: 401 });
 
+    // Haal op wie het slachtoffer geëlimineerd heeft
+    let geelimineerdDoor = null;
+    if (deelnemer.status === 'geëlimineerd') {
+      const { data: killInfo } = await supabase
+        .from('kills')
+        .select('schutter:schutter_id(voornaam, familienaam, foto_url)')
+        .eq('slachtoffer_id', deelnemer.id)
+        .single();
+      if (killInfo?.schutter) {
+        geelimineerdDoor = {
+          naam: `${killInfo.schutter.voornaam} ${killInfo.schutter.familienaam}`,
+          foto_url: killInfo.schutter.foto_url
+        };
+      }
+    }
+
     // Haal kills op van deze deelnemer
     const { data: kills } = await supabase
       .from('kills')
@@ -41,6 +57,7 @@ export async function POST(request) {
       status: deelnemer.status,
       nummer: deelnemer.nummer,
       spelGestart,
+      geelimineerdDoor,
       doelwit: spelGestart && deelnemer.status === 'actief' && deelnemer.doelwit ? {
         naam: `${deelnemer.doelwit.voornaam} ${deelnemer.doelwit.familienaam}`,
         adres: deelnemer.doelwit.adres,

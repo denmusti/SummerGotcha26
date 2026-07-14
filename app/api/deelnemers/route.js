@@ -239,6 +239,7 @@ export async function POST(request) {
     // Tijdlijn — automatisch met deelnemersnummer (anoniem)
     const { data: levendenNa } = await supabase.from('deelnemers').select('id').eq('status', 'actief');
     const aantalNa = levendenNa?.length || 0;
+    const schutterNaamTijdlijn = schutters?.length > 0 ? `${schutters[0].voornaam} ${schutters[0].familienaam}` : null;
     const tekst = omschrijving || `💀 ${slachtoffer.voornaam} ${slachtoffer.familienaam} is uitgeschakeld. Nog ${aantalNa} spelers actief.`;
     await supabase.from('tijdlijn').insert({ tekst });
 

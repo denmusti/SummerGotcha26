@@ -203,7 +203,16 @@ export default function MijnDoelwitPage() {
               <div style={{ background:`${BD}aa`, border:`1px solid ${RD}`, borderRadius:16, padding:24, textAlign:'center', marginBottom:16 }}>
                 <div style={{ fontSize:48, marginBottom:12 }}>💀</div>
                 <div style={{ color:RD, fontSize:18, fontWeight:'bold' }}>Je bent geëlimineerd</div>
-                <div style={{ color:'#ffffff55', fontSize:13, marginTop:8 }}>Beter geluk volgende keer!</div>
+                {data.geelimineerdDoor && (
+                  <div style={{ marginTop:16 }}>
+                    <div style={{ color:'#ffffff66', fontSize:13, marginBottom:8 }}>Uitgeschakeld door:</div>
+                    {data.geelimineerdDoor.foto_url && (
+                      <img src={data.geelimineerdDoor.foto_url} alt="" style={{ width:70, height:84, objectFit:'cover', borderRadius:10, border:`2px solid ${RD}`, marginBottom:8 }} />
+                    )}
+                    <div style={{ color:RD, fontSize:18, fontWeight:'bold' }}>{data.geelimineerdDoor.naam}</div>
+                  </div>
+                )}
+                <div style={{ color:'#ffffff55', fontSize:13, marginTop:12 }}>Beter geluk volgende keer!</div>
               </div>
             )}
 
