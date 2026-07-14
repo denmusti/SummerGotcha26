@@ -166,6 +166,28 @@ export default function AdminPage() {
     await laadData(); setBezig(false);
   }
 
+  async function stuurDeelnemerBericht(deelnemer) {
+    setBezig(true);
+    const { res, json } = await api('/api/notificaties', {
+      actie: 'startEen',
+      deelnemerId: deelnemer.id,
+    });
+    if (res.ok) toonMelding(`✅ Bericht verstuurd naar ${deelnemer.voornaam}!`);
+    else toonMelding(`❌ ${json.error || json.reden || 'Fout'}`, 'fout');
+    setBezig(false);
+  }
+
+  async function stuurDeelnemerBericht(deelnemer) {
+    setBezig(true);
+    const { res, json } = await api('/api/notificaties', {
+      actie: 'startEen',
+      deelnemerId: deelnemer.id,
+    });
+    if (res.ok) toonMelding(`✅ Bericht verstuurd naar ${deelnemer.voornaam}!`);
+    else toonMelding(`❌ ${json.error || json.reden || 'Fout'}`, 'fout');
+    setBezig(false);
+  }
+
   async function voegDeelnemerToe() {
     if (!nVn.trim() || !nFn.trim()) { toonMelding('❌ Voornaam en familienaam zijn verplicht', 'fout'); return; }
     setBezig(true);

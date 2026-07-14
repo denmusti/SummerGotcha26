@@ -56,6 +56,44 @@ export async function POST(request) {
       return Response.json({ success: true, marshalls: result, deelnemers: { verzonden: 0, mislukt: 0 } });
     }
 
+    // ── Startbericht naar één deelnemer ─────────────────────
+    if (body.actie === 'startEen') {
+      const { data: d } = await supabase
+        .from('deelnemers')
+        .select('voornaam, familienaam, contact, toegangscode, killcode')
+        .eq('id', body.deelnemerId)
+        .single();
+
+      if (!d || !d.contact) {
+        return Response.json({ skipped: true, reden: 'Deelnemer niet gevonden of geen telefoonnummer' });
+      }
+
+      const tel = normaliseer(d.contact);
+      if (!tel) return Response.json({ skipped: true, reden: 'Ongeldig telefoonnummer' });
+
+      const res = await stuurStartBericht(tel, `${d.voornaam} ${d.familienaam}`, d.toegangscode, d.killcode);
+      return Response.json({ success: res.success, error: res.error });
+    }
+
+    // ── Startbericht naar één deelnemer ─────────────────────
+    if (body.actie === 'startEen') {
+      const { data: d } = await supabase
+        .from('deelnemers')
+        .select('voornaam, familienaam, contact, toegangscode, killcode')
+        .eq('id', body.deelnemerId)
+        .single();
+
+      if (!d || !d.contact) {
+        return Response.json({ skipped: true, reden: 'Deelnemer niet gevonden of geen telefoonnummer' });
+      }
+
+      const tel = normaliseer(d.contact);
+      if (!tel) return Response.json({ skipped: true, reden: 'Ongeldig telefoonnummer' });
+
+      const res = await stuurStartBericht(tel, `${d.voornaam} ${d.familienaam}`, d.toegangscode, d.killcode);
+      return Response.json({ success: res.success, error: res.error });
+    }
+
     // ── Startbericht — naar alle deelnemers individueel ─────
     if (body.actie === 'start') {
       const { data: deelnemers } = await supabase
