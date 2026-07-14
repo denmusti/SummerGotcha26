@@ -210,7 +210,10 @@ export default function PubliekePage() {
               boxShadow: `0 0 25px ${GOUD}33`
             }}>
               <div style={{ color: GOUD, fontSize: 13, letterSpacing: 3, textTransform: 'uppercase', marginBottom: 4 }}>🏆 Topschutter</div>
-              <div style={{ color: GOUD, fontSize: 42, fontWeight: 'bold' }}>{data.topschutterAantal}</div>
+              <div style={{ color: GOUD, fontSize: 42, fontWeight: 'bold' }}>
+                {data.topschutterAantal}
+                {data.aantalTopschutters > 1 && <span style={{ color: '#ffffff88', fontSize: 18, marginLeft: 8 }}>({data.aantalTopschutters} schutters)</span>}
+              </div>
               <div style={{ color: '#ffffff66', fontSize: 13, marginTop: 4 }}>eliminaties — identiteit geheim</div>
             </div>
 

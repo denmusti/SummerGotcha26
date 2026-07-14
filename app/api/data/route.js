@@ -16,12 +16,7 @@ export async function GET() {
     supabase.from('tijdlijn').select('*').order('tijdstip', { ascending: false }).limit(50),
     supabase.from('deelnemers').select('id'),
     supabase.from('deelnemers').select('id').eq('status', 'actief'),
-    supabase.from('kills').select('schutter_id').then(({ data }) => {
-      if (!data) return { data: 0 };
-      const teller = {};
-      data.forEach(k => { teller[k.schutter_id] = (teller[k.schutter_id] || 0) + 1; });
-      return { data: Math.max(0, ...Object.values(teller), 0) };
-    }),
+    supabase.from('kills').select('schutter_id'),
   ]);
 
   if (statsErr || tijdlijnErr) {
@@ -31,7 +26,14 @@ export async function GET() {
 
   const totaal = alleDeelnemers?.length || 0;
   const levenden = levendeDeelnemers?.length || 0;
-  const topschutter = topKills?.data || 0;
+
+  // Bereken topschutter correct
+  const killData = topKills?.data || [];
+  const tellerPerSchutter = {};
+  killData.forEach(k => { tellerPerSchutter[k.schutter_id] = (tellerPerSchutter[k.schutter_id] || 0) + 1; });
+  const maxKills = killData.length > 0 ? Math.max(...Object.values(tellerPerSchutter)) : 0;
+  const aantalTopschutters = Object.values(tellerPerSchutter).filter(v => v === maxKills).length;
+  const topschutter = maxKills;
 
   // Sync tellers terug naar stats tabel (stille achtergrondtaak)
   supabase.from('stats').update({
@@ -45,6 +47,7 @@ export async function GET() {
     marshallTelefoons: stats.marshall_telefoons || [],
     levenden: levenden,
     topschutterAantal: topschutter,
+    aantalTopschutters: maxKills > 0 ? aantalTopschutters : 0,
     startDatum: stats.start_datum,
     eindDatum: stats.eind_datum,
     marshallAanpassingen: stats.marshall_aanpassingen || {},

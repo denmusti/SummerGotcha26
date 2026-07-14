@@ -76,7 +76,18 @@ export async function POST(request) {
         if (res.success) verzonden++;
         else mislukt++;
       }
-      return Response.json({ success: true, deelnemers: { verzonden, mislukt } });
+      // Stuur ook bericht naar marshalls
+      let marshallVerzonden = 0;
+      for (const m of (marshallsData || [])) {
+        const tel = normaliseer(m.telefoon);
+        if (!tel) continue;
+        const res = await stuurNaarLijst([tel], {
+          "1": `Het spel is gestart! ${verzonden} deelnemers ontvingen hun startbericht. Beheer via: ${process.env.NEXT_PUBLIC_APP_URL || 'summer-gotcha26.vercel.app'}/admin`
+        });
+        if (res.verzonden > 0) marshallVerzonden++;
+      }
+
+      return Response.json({ success: true, deelnemers: { verzonden, mislukt }, marshalls: { verzonden: marshallVerzonden } });
     }
 
     // ── Kill bericht ─────────────────────────────────────────
