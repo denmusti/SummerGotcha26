@@ -241,7 +241,7 @@ export async function POST(request) {
     const aantalNa = levendenNa?.length || 0;
     const schutterNaamTijdlijn = schutters?.length > 0 ? `${schutters[0].voornaam} ${schutters[0].familienaam}` : null;
     const tekst = omschrijving || `💀 ${slachtoffer.voornaam} ${slachtoffer.familienaam} is uitgeschakeld. Nog ${aantalNa} spelers actief.`;
-    await supabase.from('tijdlijn').insert({ tekst });
+    await supabase.from('tijdlijn').insert({ tekst, foto_url: slachtoffer.foto_url || null });
 
     // WhatsApp notificaties (async, niet blokkeren)
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');

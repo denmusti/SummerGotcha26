@@ -55,6 +55,7 @@ export async function GET() {
       id: t.id,
       tijdstip: t.tijdstip,
       tekst: t.tekst,
+      foto_url: t.foto_url || null,
     })),
   });
 }
