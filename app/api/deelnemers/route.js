@@ -240,8 +240,26 @@ export async function POST(request) {
     const { data: levendenNa } = await supabase.from('deelnemers').select('id').eq('status', 'actief');
     const aantalNa = levendenNa?.length || 0;
     const schutterNaamTijdlijn = schutters?.length > 0 ? `${schutters[0].voornaam} ${schutters[0].familienaam}` : null;
-    const tekst = omschrijving || `💀 ${slachtoffer.voornaam} ${slachtoffer.familienaam} is uitgeschakeld. Nog ${aantalNa} spelers actief.`;
-    await supabase.from('tijdlijn').insert({ tekst, foto_url: slachtoffer.foto_url || null });
+    // Altijd twee tijdlijn berichten:
+    // 1) Kill registratie melding — verschilt naargelang wie registreerde
+    const marshallNaamRegistratie = body.marshallNaam;
+    let registratieTekst;
+    if (killcode_gebruikt) {
+      registratieTekst = `🔫 Kill geregistreerd door killer`;
+    } else if (marshallNaamRegistratie) {
+      registratieTekst = `👮 Kill geregistreerd door marshall ${marshallNaamRegistratie}`;
+    } else {
+      registratieTekst = `👮 Kill geregistreerd door marshall`;
+    }
+    await supabase.from('tijdlijn').insert({
+      tekst: registratieTekst,
+      foto_url: null
+    });
+    // 2) Kill bericht met foto en naam slachtoffer
+    await supabase.from('tijdlijn').insert({
+      tekst: `💀 ${slachtoffer.voornaam} ${slachtoffer.familienaam} is uitgeschakeld. Nog ${aantalNa} spelers actief.`,
+      foto_url: slachtoffer.foto_url || null
+    });
 
     // WhatsApp notificaties (async, niet blokkeren)
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');

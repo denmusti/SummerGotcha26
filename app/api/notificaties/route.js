@@ -131,8 +131,9 @@ export async function POST(request) {
     // ── Kill bericht ─────────────────────────────────────────
     const { schutter, slachtoffer, nieuwDoelwit, tijdstip } = body;
 
+    // Kill berichten gaan naar ALLE deelnemers, ook geëlimineerde
     const { data: deelnemers } = await supabase
-      .from('deelnemers').select('contact').eq('status', 'actief');
+      .from('deelnemers').select('contact');
 
     const deelTels = (deelnemers || [])
       .map(d => normaliseer(d.contact)).filter(Boolean);

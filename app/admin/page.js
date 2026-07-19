@@ -317,7 +317,7 @@ export default function AdminPage() {
 
   async function bevestigElim(id, metKillcode=false) {
     setBezig(true);
-    const { res } = await api('/api/deelnemers', { actie:'elimineren', id, omschrijving:elimTekst, killcode_gebruikt:metKillcode });
+    const { res } = await api('/api/deelnemers', { actie:'elimineren', id, omschrijving:elimTekst, killcode_gebruikt:metKillcode, marshallNaam: marshallInfo?.naam });
     if (res.ok) {
       toonMelding('✅ Geëlimineerd!');
       setElimD(''); setElimTekst(''); setKillcodeResult(null); setKillcodeInput('');
