@@ -92,6 +92,10 @@ export default function AdminPage() {
   // Admin preview
   const [previewDeelnemer, setPreviewDeelnemer] = useState(null);
   const [previewForceGestart, setPreviewForceGestart] = useState(false);
+  const [testKillSchutter, setTestKillSchutter] = useState('');
+  const [testKillcode, setTestKillcode] = useState('');
+  const [testKillBezig, setTestKillBezig] = useState(false);
+  const [testKillResultaat, setTestKillResultaat] = useState(null);
 
   function toonMelding(t, type='ok') {
     setMelding({ t, type });
@@ -930,6 +934,57 @@ export default function AdminPage() {
 
         {/* ── PREVIEW ── */}
         {tab==='preview' && isAdmin && <>
+          <Vak titel="🧪 Test killcode-validatie (100% veilig — geen eliminatie)" kleur={GR}>
+            <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
+              Kies een actieve deelnemer en vul een killcode in om te testen of de validatie correct werkt.
+              Dit registreert <strong style={{color:WIT}}>nooit</strong> een echte kill — enkel een check.
+            </p>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr auto', gap:10, alignItems:'end' }}>
+              <div>
+                <label style={{ color:'#ffffff66', fontSize:12, display:'block', marginBottom:4 }}>Schutter (deelnemer)</label>
+                <select value={testKillSchutter} onChange={e=>{setTestKillSchutter(e.target.value); setTestKillResultaat(null);}}
+                  style={{ ...inp, width:'100%' }}>
+                  <option value="">Kies deelnemer...</option>
+                  {deelnemers.filter(d=>d.status==='actief').map(d=>(
+                    <option key={d.id} value={d.toegangscode}>
+                      #{d.nummer} {d.voornaam} {d.familienaam}{d.doelwit ? ` → doelwit: ${d.doelwit.voornaam} ${d.doelwit.familienaam}` : ' (geen doelwit)'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ color:'#ffffff66', fontSize:12, display:'block', marginBottom:4 }}>Killcode om te testen</label>
+                <input type="text" value={testKillcode} onChange={e=>{setTestKillcode(e.target.value.toUpperCase()); setTestKillResultaat(null);}}
+                  placeholder="bv. XK7P2Q" maxLength={6}
+                  style={{ ...inp, width:'100%', letterSpacing:2, fontFamily:'monospace' }} />
+              </div>
+              <Btn
+                onClick={async () => {
+                  setTestKillBezig(true); setTestKillResultaat(null);
+                  const res = await fetch('/api/deelnemers', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ actie:'killcode', killcode: testKillcode, toegangscode: testKillSchutter })
+                  });
+                  const json = await res.json();
+                  setTestKillResultaat(res.ok ? { geldig:true, naam: json.slachtoffer?.naam } : { geldig:false, fout: json.error });
+                  setTestKillBezig(false);
+                }}
+                disabled={testKillBezig || !testKillSchutter || testKillcode.length < 4}
+                kleur={GR}
+              >
+                {testKillBezig ? '...' : '🔍 Test'}
+              </Btn>
+            </div>
+            {testKillResultaat && (
+              <div style={{ marginTop:14, padding:14, borderRadius:10, background: testKillResultaat.geldig ? '#1E844922' : '#C0392B22', border:`1px solid ${testKillResultaat.geldig ? GR : RD}` }}>
+                {testKillResultaat.geldig
+                  ? <span style={{ color:GR }}>✅ Geldig! Deze killcode hoort bij het doelwit: <strong>{testKillResultaat.naam}</strong></span>
+                  : <span style={{ color:RD }}>❌ Ongeldig: {testKillResultaat.fout}</span>
+                }
+              </div>
+            )}
+          </Vak>
+
           <Vak titel="🔍 Preview doelwitpagina per deelnemer">
             <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
               Klik op een deelnemer om te zien hoe zijn/haar doelwitpagina eruitziet. Opent in een nieuw tabblad.
