@@ -129,7 +129,7 @@ export async function POST(request) {
     }
 
     // ── Kill bericht ─────────────────────────────────────────
-    const { schutter, slachtoffer, nieuwDoelwit, tijdstip } = body;
+    const { schutter, slachtoffer, nieuwDoelwit, tijdstip, aantalLevenden } = body;
 
     // Kill berichten gaan naar ALLE deelnemers, ook geëlimineerde
     const { data: deelnemers } = await supabase
@@ -138,9 +138,16 @@ export async function POST(request) {
     const deelTels = (deelnemers || [])
       .map(d => normaliseer(d.contact)).filter(Boolean);
 
+    // Gebruik het meegegeven live aantal; val terug op een live query als het ontbreekt
+    let levendenAantal = aantalLevenden;
+    if (levendenAantal === undefined) {
+      const { data: levendeData } = await supabase.from('deelnemers').select('id').eq('status', 'actief');
+      levendenAantal = levendeData?.length || 0;
+    }
+
     const resultaten = await Promise.all([
       deelTels.length > 0
-        ? stuurKillPubliek(deelTels, stats?.levenden || 0, slachtoffer)
+        ? stuurKillPubliek(deelTels, levendenAantal, slachtoffer)
         : Promise.resolve({ verzonden: 0, mislukt: 0 }),
       marshallTels.length > 0
         ? stuurKillMarshall(marshallTels, slachtoffer, schutter, nieuwDoelwit, tijdstip)

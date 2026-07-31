@@ -154,24 +154,13 @@ export async function POST(request) {
   // ── Elimineren via killcode ──────────────────────────
   if (actie === 'killcode') {
     const { killcode, toegangscode } = body;
+    const ingevoerdeCode = (killcode || '').toUpperCase().trim();
 
-    // Zoek het slachtoffer via de killcode
-    const { data: slachtoffer, error } = await supabase
-      .from('deelnemers')
-      .select('*')
-      .eq('killcode', killcode.toUpperCase().trim())
-      .eq('status', 'actief')
-      .single();
-
-    if (error || !slachtoffer) {
-      return Response.json({ error: 'Ongeldige killcode of deelnemer al geëlimineerd' }, { status: 404 });
-    }
-
-    // Als deelnemer ingelogd is via toegangscode: controleer dat dit effectief zijn doelwit is
+    // Deelnemer (met toegangscode): vergelijk rechtstreeks met de killcode van zijn huidige doelwit
     if (isDeelnemer && toegangscode) {
       const { data: schutter } = await supabase
         .from('deelnemers')
-        .select('id, doelwit_id')
+        .select('id, doelwit:doelwit_id(id, voornaam, familienaam, killcode, status)')
         .eq('toegangscode', toegangscode.trim())
         .eq('status', 'actief')
         .single();
@@ -180,9 +169,28 @@ export async function POST(request) {
         return Response.json({ error: 'Schutter niet gevonden' }, { status: 404 });
       }
 
-      if (schutter.doelwit_id !== slachtoffer.id) {
+      const doelwit = schutter.doelwit;
+      if (!doelwit || doelwit.status !== 'actief') {
+        return Response.json({ error: 'Je hebt momenteel geen actief doelwit' }, { status: 404 });
+      }
+
+      if ((doelwit.killcode || '').toUpperCase().trim() !== ingevoerdeCode) {
         return Response.json({ error: 'Deze killcode is niet van jouw huidige doelwit' }, { status: 403 });
       }
+
+      return Response.json({ geldig: true, slachtoffer: { id: doelwit.id, naam: `${doelwit.voornaam} ${doelwit.familienaam}` } });
+    }
+
+    // Marshall/admin: enkel opzoeken wie deze killcode heeft (schutter wordt later automatisch bepaald)
+    const { data: slachtoffer, error } = await supabase
+      .from('deelnemers')
+      .select('*')
+      .eq('killcode', ingevoerdeCode)
+      .eq('status', 'actief')
+      .single();
+
+    if (error || !slachtoffer) {
+      return Response.json({ error: 'Ongeldige killcode of deelnemer al geëlimineerd' }, { status: 404 });
     }
 
     return Response.json({ geldig: true, slachtoffer: { id: slachtoffer.id, naam: `${slachtoffer.voornaam} ${slachtoffer.familienaam}` } });
@@ -284,7 +292,8 @@ export async function POST(request) {
         schutter: schutterNaam,
         slachtoffer: slachtofferNaam,
         nieuwDoelwit: nieuwDoelwitNaam,
-        tijdstip: new Date().toISOString()
+        tijdstip: new Date().toISOString(),
+        aantalLevenden: aantalNa
       })
     }).catch(e => console.error('Notificatie fout:', e));
 
