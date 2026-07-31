@@ -69,7 +69,7 @@ export async function POST(request) {
   // Deelnemer authenticatie via toegangscode (enkel voor killcode en elimineren acties)
   let isDeelnemer = false;
   if (!isAdmin && !isMarshall && body.toegangscode && ['killcode', 'elimineren'].includes(actie)) {
-    const { data: d } = await supabase.from('deelnemers').select('id').eq('toegangscode', body.toegangscode).eq('status', 'actief').single();
+    const { data: d } = await supabase.from('deelnemers').select('id').eq('toegangscode', body.toegangscode.toLowerCase().trim()).eq('status', 'actief').single();
     isDeelnemer = !!d;
   }
 
@@ -161,7 +161,7 @@ export async function POST(request) {
       const { data: schutter } = await supabase
         .from('deelnemers')
         .select('id, doelwit:doelwit_id(id, voornaam, familienaam, killcode, status)')
-        .eq('toegangscode', toegangscode.trim())
+        .eq('toegangscode', toegangscode.toLowerCase().trim())
         .eq('status', 'actief')
         .single();
 
