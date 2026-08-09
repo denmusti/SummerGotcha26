@@ -27,8 +27,6 @@ export async function GET(request) {
 
   // Haal ook het doelwit op dat de schutter na de kill kreeg
   const killsMetDoelwit = await Promise.all((kills || []).map(async k => {
-    // Het nieuwe doelwit van de schutter = het doelwit van het slachtoffer op het moment van de kill
-    // Dat is nu gewoon het huidige doelwit van de schutter (tenzij er nog kills na waren)
     return {
       id: k.id,
       tijdstip: k.tijdstip,
@@ -37,5 +35,35 @@ export async function GET(request) {
     };
   }));
 
-  return Response.json(killsMetDoelwit);
+  // ── Topschutter ranking ──────────────────────────────
+  // Kills per schutter tellen
+  const { data: alleKills } = await supabase.from('kills').select('schutter_id');
+  const killTeller = {};
+  (alleKills || []).forEach(k => {
+    killTeller[k.schutter_id] = (killTeller[k.schutter_id] || 0) + 1;
+  });
+
+  // Alle deelnemers ophalen om naam, status en overlevingstijd te koppelen
+  const { data: alleDeelnemers } = await supabase
+    .from('deelnemers')
+    .select('id, voornaam, familienaam, foto_url, status, geelinimineerd_op');
+
+  const ranking = (alleDeelnemers || [])
+    .map(d => ({
+      id: d.id,
+      naam: `${d.voornaam} ${d.familienaam}`,
+      foto_url: d.foto_url,
+      status: d.status,
+      kills: killTeller[d.id] || 0,
+      // Actieve spelers hebben nog geen eliminatie-tijdstip -> zij overleven "oneindig lang" (grootste waarde)
+      overlevingsRang: d.status === 'actief' ? Infinity : new Date(d.geelinimineerd_op).getTime(),
+    }))
+    .filter(d => d.kills > 0) // enkel spelers met minstens 1 kill tonen in de ranking
+    .sort((a, b) => {
+      if (b.kills !== a.kills) return b.kills - a.kills; // meeste kills eerst
+      return b.overlevingsRang - a.overlevingsRang; // bij gelijkstand: langst levende eerst
+    })
+    .map(({ overlevingsRang, ...rest }) => rest); // interne sorteerwaarde niet meesturen
+
+  return Response.json({ kills: killsMetDoelwit, ranking });
 }

@@ -88,6 +88,7 @@ export default function AdminPage() {
   // Herversturing kill bericht
   const [herversturBezig, setHerversturBezig] = useState(false);
   const [killsLijst, setKillsLijst] = useState([]);
+  const [topschutterRanking, setTopschutterRanking] = useState([]);
 
   // Admin preview
   const [previewDeelnemer, setPreviewDeelnemer] = useState(null);
@@ -124,6 +125,16 @@ export default function AdminPage() {
     if (res.ok) setDeelnemers(await res.json());
   }
 
+  async function laadKills(overrideWw) {
+    const geldigWw = overrideWw || ww;
+    const res = await fetch(`/api/kills?wachtwoord=${encodeURIComponent(geldigWw)}`);
+    if (res.ok) {
+      const json = await res.json();
+      setKillsLijst(json.kills || []);
+      setTopschutterRanking(json.ranking || []);
+    }
+  }
+
   async function login() {
     setBezig(true); setLoginFout('');
     const res = await fetch(`/api/check-wachtwoord?wachtwoord=${encodeURIComponent(ww)}`);
@@ -136,6 +147,7 @@ export default function AdminPage() {
     setIngelogd(true);
     await laadData();
     await laadDeelnemers(ww);
+    await laadKills(ww);
     if (m.is_admin) await laadMarshalls();
     setBezig(false);
   }
@@ -325,7 +337,7 @@ export default function AdminPage() {
     if (res.ok) {
       toonMelding('✅ Geëlimineerd!');
       setElimD(''); setElimTekst(''); setKillcodeResult(null); setKillcodeInput('');
-      await laadDeelnemers(); await laadData();
+      await laadDeelnemers(); await laadData(); await laadKills();
     }
     setBezig(false);
   }
@@ -571,9 +583,12 @@ export default function AdminPage() {
                 <div style={{ flex:1, minWidth:140 }}>
                   <div style={{ color:WIT, fontWeight:'bold' }}>{d.voornaam} {d.familienaam}</div>
                   <div style={{ color:'#ffffff55', fontSize:12 }}>{d.adres}</div>
-                  <div style={{ display:'flex', gap:12, marginTop:2 }}>
+                  <div style={{ display:'flex', gap:12, marginTop:2, flexWrap:'wrap' }}>
                     <span style={{ color:AC, fontSize:11 }}>🔑 {d.toegangscode}</span>
                     <span style={{ color:RD, fontSize:11 }}>💀 {d.killcode}</span>
+                    {d.status==='geëlimineerd' && d.aantalKills > 0 && (
+                      <span style={{ color:GD, fontSize:11 }}>🏆 {d.aantalKills} kill{d.aantalKills===1?'':'s'}</span>
+                    )}
                   </div>
                 </div>
                 {d.doelwit && <div style={{ color:RD, fontSize:12 }}>🎯 {d.doelwit.voornaam} {d.doelwit.familienaam}</div>}
@@ -722,6 +737,29 @@ export default function AdminPage() {
 
         {/* ── ELIMINATIES ── */}
         {tab==='eliminaties' && <>
+          <Vak titel="🏆 Topschutters" kleur={GD}>
+            <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
+              Gerangschikt op aantal kills. Bij gelijkstand staat de langst levende (of nog actieve) speler hoger.
+            </p>
+            {topschutterRanking.length === 0
+              ? <div style={{ color:'#ffffff33', fontStyle:'italic', textAlign:'center', padding:16 }}>Nog geen kills geregistreerd.</div>
+              : topschutterRanking.map((r, i) => (
+                <div key={r.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid #ffffff11' }}>
+                  <div style={{ width:28, textAlign:'center', fontSize: i===0?20:15, flexShrink:0 }}>
+                    {i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}.`}
+                  </div>
+                  {r.foto_url && <img src={r.foto_url} alt="" style={{ width:32, height:38, objectFit:'cover', borderRadius:6, flexShrink:0 }} />}
+                  <div style={{ flex:1 }}>
+                    <div style={{ color:r.status==='actief'?WIT:'#999', fontWeight:'bold' }}>
+                      {r.naam} {r.status!=='actief' && <span style={{ color:RD, fontSize:11 }}>💀</span>}
+                    </div>
+                  </div>
+                  <div style={{ color:GD, fontWeight:'bold', fontSize:16 }}>{r.kills} {r.kills===1?'kill':'kills'}</div>
+                </div>
+              ))
+            }
+          </Vak>
+
           <Vak titel="🔑 Via killcode" kleur={GD}>
             <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>De schutter geeft de killcode van zijn slachtoffer in ter bevestiging.</p>
             <div style={{ display:'flex', gap:12, alignItems:'flex-end' }}>

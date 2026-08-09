@@ -47,7 +47,16 @@ export async function GET(request) {
     .order('nummer', { ascending: true });
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
-  return Response.json(data);
+
+  // Aantal kills per deelnemer berekenen en toevoegen
+  const { data: alleKills } = await supabase.from('kills').select('schutter_id');
+  const killTeller = {};
+  (alleKills || []).forEach(k => {
+    killTeller[k.schutter_id] = (killTeller[k.schutter_id] || 0) + 1;
+  });
+  const dataMetKills = (data || []).map(d => ({ ...d, aantalKills: killTeller[d.id] || 0 }));
+
+  return Response.json(dataMetKills);
 }
 
 export async function POST(request) {
