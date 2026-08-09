@@ -58,10 +58,9 @@ export async function GET(request) {
       // Actieve spelers hebben nog geen eliminatie-tijdstip -> zij overleven "oneindig lang" (grootste waarde)
       overlevingsRang: d.status === 'actief' ? Infinity : new Date(d.geelinimineerd_op).getTime(),
     }))
-    .filter(d => d.kills > 0) // enkel spelers met minstens 1 kill tonen in de ranking
     .sort((a, b) => {
       if (b.kills !== a.kills) return b.kills - a.kills; // meeste kills eerst
-      return b.overlevingsRang - a.overlevingsRang; // bij gelijkstand: langst levende eerst
+      return b.overlevingsRang - a.overlevingsRang; // bij gelijkstand: actief/langst levende eerst
     })
     .map(({ overlevingsRang, ...rest }) => rest); // interne sorteerwaarde niet meesturen
 

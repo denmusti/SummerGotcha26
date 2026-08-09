@@ -586,7 +586,7 @@ export default function AdminPage() {
                   <div style={{ display:'flex', gap:12, marginTop:2, flexWrap:'wrap' }}>
                     <span style={{ color:AC, fontSize:11 }}>🔑 {d.toegangscode}</span>
                     <span style={{ color:RD, fontSize:11 }}>💀 {d.killcode}</span>
-                    {d.status==='geëlimineerd' && d.aantalKills > 0 && (
+                    {d.aantalKills > 0 && (
                       <span style={{ color:GD, fontSize:11 }}>🏆 {d.aantalKills} kill{d.aantalKills===1?'':'s'}</span>
                     )}
                   </div>
@@ -601,9 +601,12 @@ export default function AdminPage() {
 
           {geelim.length>0 && <Vak titel={`💀 Geëlimineerd (${geelim.length})`} kleur="#666">
             {geelim.map(d => (
-              <div key={d.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 0', borderBottom:'1px solid #ffffff11', opacity:0.5 }}>
+              <div key={d.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 0', borderBottom:'1px solid #ffffff11', opacity:0.7 }}>
                 <div style={{ background:'#333', color:WIT, borderRadius:8, padding:'4px 10px', fontSize:12, minWidth:36, textAlign:'center' }}>#{d.nummer}</div>
-                <div style={{ color:'#ffffff88', textDecoration:'line-through' }}>{d.voornaam} {d.familienaam}</div>
+                <div style={{ color:'#ffffff88', textDecoration:'line-through', flex:1 }}>{d.voornaam} {d.familienaam}</div>
+                {d.aantalKills > 0 && (
+                  <span style={{ color:GD, fontSize:11, textDecoration:'none' }}>🏆 {d.aantalKills} kill{d.aantalKills===1?'':'s'}</span>
+                )}
               </div>
             ))}
           </Vak>}
