@@ -256,6 +256,22 @@ export default function AdminPage() {
     setBezig(false);
   }
 
+  async function herschommelKetting() {
+    const aantalActief = deelnemers.filter(d => d.status==='actief').length;
+    if (!confirm(`🔀 Doelwitten herschommelen voor de ${aantalActief} nog actieve spelers?\n\nAlle huidige doelwitten worden vervangen door een nieuwe willekeurige ketting. Nuttig in de eindfase als de kleine kring te doorzichtig wordt. Iedereen krijgt een WhatsApp-melding (zonder details).\n\nDeze actie kan niet ongedaan gemaakt worden.`)) return;
+    setBezig(true);
+    const { res, json } = await api('/api/loting', { actie:'herschommel' });
+    if (res.ok) {
+      toonMelding(`✅ Doelwitten herschud voor ${json.aantalDeelnemers} spelers!`);
+      await laadDeelnemers(); await laadData();
+      setMarshallInfo(prev => prev ? { ...prev, aanpassingen: 0 } : prev);
+      setMarshallLijst(prev => prev.map(m => ({ ...m, aanpassingen: 0 })));
+    } else {
+      toonMelding(`❌ ${json.error}`, 'fout');
+    }
+    setBezig(false);
+  }
+
   async function valideerKetting() {
     setBezig(true);
     const { json } = await api('/api/loting', { actie:'valideer' });
@@ -640,6 +656,25 @@ export default function AdminPage() {
               </div>
             )}
           </Vak>}
+
+          {isAdmin && (() => {
+            const spelGestart = data?.startDatum && new Date() >= new Date(data.startDatum);
+            if (!spelGestart) return null;
+            return (
+              <Vak titel="🔀 Doelwitten herschommelen" kleur={RD}>
+                <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
+                  Herschud de doelwitten van enkel de <strong style={{color:WIT}}>{actief.length} nog actieve spelers</strong> in een gloednieuwe willekeurige ketting.
+                  Handig in de eindfase: als de kring klein wordt, kunnen spelers vaak uitvogelen wie op wie jaagt en verdwijnt de spanning. Deze actie schudt alles opnieuw door elkaar.
+                </p>
+                <div style={{ background:'#C0392B15', border:'1px solid #C0392B44', borderRadius:10, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#ffffff88' }}>
+                  ⚠️ Iedereen krijgt een WhatsApp-melding dat hun doelwit veranderd is (zonder details). Marshall-aanpassingstellers worden gereset.
+                </div>
+                <Btn onClick={herschommelKetting} disabled={bezig || actief.length < 2} kleur={RD}>
+                  🔀 Herschommel nu ({actief.length} spelers)
+                </Btn>
+              </Vak>
+            );
+          })()}
 
           {testLotingPreview && (
             <Vak titel="🧪 Test-loting preview (niet opgeslagen)" kleur={OR}>
