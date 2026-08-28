@@ -94,6 +94,7 @@ export default function AdminPage() {
   // Herversturing kill bericht
   const [herversturBezig, setHerversturBezig] = useState(false);
   const [herversturKanaal, setHerversturKanaal] = useState('beide');
+  const [testKanaal, setTestKanaal] = useState('beide');
   const [killsLijst, setKillsLijst] = useState([]);
   const [topschutterRanking, setTopschutterRanking] = useState([]);
 
@@ -506,8 +507,8 @@ export default function AdminPage() {
 
   async function testWaType(testType) {
     setWaBezig(true);
-    const { res, json } = await api('/api/notificaties', { testBericht: true, testType });
-    if (res.ok) toonMelding(`✅ Testbericht verzonden naar ${json.marshalls?.verzonden || 0} marshall(s)!`);
+    const { res, json } = await api('/api/notificaties', { testBericht: true, testType, kanaal: testKanaal });
+    if (res.ok) toonMelding(`✅ Testbericht verzonden — WhatsApp: ${json.marshalls?.verzonden || 0}, push: ${json.push?.verzonden || 0}`);
     else toonMelding(`❌ ${json.error || json.reden || 'Fout'}`, 'fout');
     setWaBezig(false);
   }
@@ -1030,6 +1031,11 @@ export default function AdminPage() {
             <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
               Alle testberichten worden <strong style={{color:WIT}}>enkel naar marshalls</strong> gestuurd — nooit naar deelnemers. De tekst bevat [TEST] zodat het duidelijk is.
             </p>
+            <Sel label="Kanaal" value={testKanaal} onChange={setTestKanaal}>
+              <option value="beide">WhatsApp + push</option>
+              <option value="push">Enkel push</option>
+              <option value="whatsapp">Enkel WhatsApp</option>
+            </Sel>
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                 <Btn onClick={()=>testWaType('kill_publiek')} disabled={waBezig} kleur={OR} klein>📤 Test kill (zoals deelnemers het zien)</Btn>

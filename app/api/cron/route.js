@@ -74,7 +74,7 @@ async function verwerkStart(supabase, stats, nu) {
       titel: 'Summer Gotcha 2026',
       tekst: `Welkom ${d.voornaam}! Het spel is gestart — open de app voor je doelwit.`,
       url: '/mijn-doelwit',
-      tag: 'start',
+      tag: `start-${Date.now()}`,
     }).catch(() => {});
   }
 
@@ -95,7 +95,7 @@ async function verwerkStart(supabase, stats, nu) {
     titel: 'Summer Gotcha 2026',
     tekst: 'Het spel is gestart! Beheer via de admin-pagina.',
     url: '/admin',
-    tag: 'start',
+    tag: `start-${Date.now()}`,
   }).catch(() => {});
 
   // Registreer in tijdlijn

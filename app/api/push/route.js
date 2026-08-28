@@ -133,7 +133,7 @@ export async function POST(request) {
       titel: 'Summer Gotcha 2026',
       tekst: '✅ Testmelding — meldingen werken op dit toestel!',
       url: eigenaar.rol === 'marshall' ? '/admin' : '/mijn-doelwit',
-      tag: 'test',
+      tag: `test-${Date.now()}`,
     });
     return Response.json({ success: true, ...r });
   }

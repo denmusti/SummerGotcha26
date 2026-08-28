@@ -53,20 +53,25 @@ export async function POST(request) {
         test: '[TEST] Testbericht - integratie werkt correct!',
       };
       const tekst = teksten[testType] || teksten.test;
+      const kanaal = body.kanaal || 'beide'; // 'beide' | 'push' | 'whatsapp'
 
       let wa = { verzonden: 0, mislukt: 0 };
-      if (twilioAan && marshallTels.length > 0) {
+      if (kanaal !== 'push' && twilioAan && marshallTels.length > 0) {
         wa = await stuurNaarLijst(marshallTels, { '1': tekst });
       }
-      const push = await pushNaarMarshalls(supabase, {
-        titel: 'Summer Gotcha 2026 — test',
-        tekst,
-        url: '/admin',
-        tag: 'test',
-      });
+      let push = { verzonden: 0, mislukt: 0, opgeruimd: 0 };
+      if (kanaal !== 'whatsapp') {
+        push = await pushNaarMarshalls(supabase, {
+          titel: 'Summer Gotcha 2026 — test',
+          tekst,
+          url: '/admin',
+          tag: `test-${Date.now()}`,
+        });
+      }
 
       return Response.json({
         success: true,
+        kanaal,
         marshalls: wa,
         deelnemers: { verzonden: 0, mislukt: 0 },
         push,
@@ -92,7 +97,7 @@ export async function POST(request) {
         titel: 'Summer Gotcha 2026',
         tekst: `Welkom ${d.voornaam}! Open de app voor je toegangscode en je doelwit.`,
         url: '/mijn-doelwit',
-        tag: 'start',
+        tag: `start-${Date.now()}`,
       });
 
       return Response.json({ success: wa.success || push.verzonden > 0, error: wa.error, push });
@@ -119,7 +124,7 @@ export async function POST(request) {
           titel: 'Summer Gotcha 2026',
           tekst: `Welkom ${d.voornaam}! Het spel is gestart — open de app voor je doelwit.`,
           url: '/mijn-doelwit',
-          tag: 'start',
+          tag: `start-${Date.now()}`,
         });
         pushVerzonden += p.verzonden;
       }
@@ -140,7 +145,7 @@ export async function POST(request) {
         titel: 'Summer Gotcha 2026',
         tekst: 'Het spel is gestart! Beheer via de admin-pagina.',
         url: '/admin',
-        tag: 'start',
+        tag: `start-${Date.now()}`,
       });
 
       return Response.json({
