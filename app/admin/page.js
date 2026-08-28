@@ -87,6 +87,10 @@ export default function AdminPage() {
   const [waBericht, setWaBericht] = useState('');
   const [waBezig, setWaBezig] = useState(false);
 
+  // Push-overzicht (wie heeft meldingen aan)
+  const [pushOverzicht, setPushOverzicht] = useState(null);
+  const [pushOverzichtBezig, setPushOverzichtBezig] = useState(false);
+
   // Herversturing kill bericht
   const [herversturBezig, setHerversturBezig] = useState(false);
   const [killsLijst, setKillsLijst] = useState([]);
@@ -127,6 +131,14 @@ export default function AdminPage() {
     if (res.ok) setDeelnemers(await res.json());
   }
 
+  async function laadPushOverzicht() {
+    setPushOverzichtBezig(true);
+    const { res, json } = await api('/api/push', { actie: 'overzicht' });
+    if (res.ok) setPushOverzicht(json);
+    else toonMelding(`❌ ${json.error || 'Kon push-overzicht niet laden'}`, 'fout');
+    setPushOverzichtBezig(false);
+  }
+
   async function laadKills(overrideWw) {
     const geldigWw = overrideWw || ww;
     const res = await fetch(`/api/kills?wachtwoord=${encodeURIComponent(geldigWw)}`);
@@ -150,7 +162,7 @@ export default function AdminPage() {
     await laadData();
     await laadDeelnemers(ww);
     await laadKills(ww);
-    if (m.is_admin) await laadMarshalls();
+    if (m.is_admin) { await laadMarshalls(); await laadPushOverzicht(); }
     setBezig(false);
   }
 
@@ -883,6 +895,56 @@ export default function AdminPage() {
               Zet meldingen aan op dit toestel. Marshalls krijgen dan kill- en startmeldingen rechtstreeks in de browser — gratis, naast WhatsApp.
             </p>
             <PushKnop auth={{ wachtwoord: ww }} compact />
+          </Vak>
+
+          <Vak titel="📲 Wie heeft meldingen aan?" kleur={AC}>
+            <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14, flexWrap:'wrap' }}>
+              <Btn onClick={laadPushOverzicht} disabled={pushOverzichtBezig} kleur={BM} klein>
+                {pushOverzichtBezig ? '...' : '🔄 Ververs'}
+              </Btn>
+              {pushOverzicht && (() => {
+                const dAan = pushOverzicht.deelnemers.filter(d => d.toestellen > 0).length;
+                const mAan = pushOverzicht.marshalls.filter(m => m.toestellen > 0).length;
+                return (
+                  <span style={{ color:'#ffffff99', fontSize:13 }}>
+                    Deelnemers <strong style={{ color:WIT }}>{dAan}/{pushOverzicht.deelnemers.length}</strong>
+                    {'  ·  '}
+                    Marshalls <strong style={{ color:WIT }}>{mAan}/{pushOverzicht.marshalls.length}</strong>
+                  </span>
+                );
+              })()}
+            </div>
+
+            {!pushOverzicht ? (
+              <div style={{ color:'#ffffff33', fontStyle:'italic' }}>Nog niet geladen — klik op Ververs.</div>
+            ) : (() => {
+              const fmt = (t) => t ? new Date(t).toLocaleString('nl-BE', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
+              const Rij = ({ label, extra, aan, toestellen, laatst }) => (
+                <div style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderBottom:'1px solid #ffffff11' }}>
+                  <span style={{ fontSize:15 }}>{aan ? '🔔' : '🔕'}</span>
+                  <div style={{ flex:1, color: aan ? WIT : '#ffffff66', fontSize:13 }}>{label} {extra}</div>
+                  {aan
+                    ? <span style={{ color:GR, fontSize:12, whiteSpace:'nowrap' }}>{toestellen} toestel{toestellen > 1 ? 'len' : ''} · {fmt(laatst)}</span>
+                    : <span style={{ color:'#ffffff44', fontSize:12 }}>nog niet</span>}
+                </div>
+              );
+              return (
+                <>
+                  <div style={{ color:AC, fontSize:12, letterSpacing:1, textTransform:'uppercase', margin:'6px 0 4px' }}>Deelnemers</div>
+                  {pushOverzicht.deelnemers.map(d => (
+                    <Rij key={'d' + d.id}
+                      label={`#${d.nummer} ${d.naam}`}
+                      extra={d.status !== 'actief' ? <span style={{ color:RD }}>💀</span> : null}
+                      aan={d.toestellen > 0} toestellen={d.toestellen} laatst={d.laatst} />
+                  ))}
+                  <div style={{ color:AC, fontSize:12, letterSpacing:1, textTransform:'uppercase', margin:'16px 0 4px' }}>Marshalls</div>
+                  {pushOverzicht.marshalls.map(m => (
+                    <Rij key={'m' + m.id} label={m.naam}
+                      aan={m.toestellen > 0} toestellen={m.toestellen} laatst={m.laatst} />
+                  ))}
+                </>
+              );
+            })()}
           </Vak>
 
           <Vak titel="📱 WhatsApp via Twilio - instellingen">

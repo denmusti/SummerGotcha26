@@ -45,6 +45,57 @@ export async function POST(request) {
     return Response.json({ success: true });
   }
 
+  // ── Admin-overzicht: wie heeft meldingen aangezet? ─────
+  if (actie === 'overzicht') {
+    const { data: stats } = await supabase.from('stats').select('wachtwoord').eq('id', 1).single();
+    let admin = !!(body.wachtwoord && body.wachtwoord === stats?.wachtwoord);
+    if (!admin && body.wachtwoord) {
+      const { data: m } = await supabase
+        .from('marshalls').select('is_admin').eq('wachtwoord', body.wachtwoord).single();
+      admin = !!m?.is_admin;
+    }
+    if (!admin) return Response.json({ error: 'Geen admin rechten' }, { status: 403 });
+
+    const { data: abos } = await supabase
+      .from('push_abonnementen')
+      .select('deelnemer_id, marshall_id, rol, aangemaakt_op, laatst_gebruikt_op');
+
+    const perDeelnemer = new Map();
+    const perMarshall = new Map();
+    for (const a of abos || []) {
+      const map = a.rol === 'marshall' ? perMarshall : perDeelnemer;
+      const key = a.rol === 'marshall' ? a.marshall_id : a.deelnemer_id;
+      if (key == null) continue;
+      const cur = map.get(key) || { toestellen: 0, laatst: null };
+      cur.toestellen++;
+      const t = a.laatst_gebruikt_op || a.aangemaakt_op;
+      if (t && (!cur.laatst || t > cur.laatst)) cur.laatst = t;
+      map.set(key, cur);
+    }
+
+    const { data: deelnemers } = await supabase
+      .from('deelnemers').select('id, nummer, voornaam, familienaam, status').order('nummer', { ascending: true });
+    const { data: marshalls } = await supabase
+      .from('marshalls').select('id, naam').order('naam', { ascending: true });
+
+    return Response.json({
+      deelnemers: (deelnemers || []).map((d) => ({
+        id: d.id,
+        nummer: d.nummer,
+        naam: `${d.voornaam} ${d.familienaam}`,
+        status: d.status,
+        toestellen: perDeelnemer.get(d.id)?.toestellen || 0,
+        laatst: perDeelnemer.get(d.id)?.laatst || null,
+      })),
+      marshalls: (marshalls || []).map((m) => ({
+        id: m.id,
+        naam: m.naam,
+        toestellen: perMarshall.get(m.id)?.toestellen || 0,
+        laatst: perMarshall.get(m.id)?.laatst || null,
+      })),
+    });
+  }
+
   const eigenaar = await bepaalEigenaar(supabase, body);
   if (!eigenaar) return Response.json({ error: 'Ongeldige code' }, { status: 401 });
 
