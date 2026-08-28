@@ -217,13 +217,15 @@ export async function POST(request) {
         titel: '💀 Nieuwe kill!',
         tekst: `RIP ${slachtoffer}. Nog ${levendenAantal} spelers actief.`,
         url: '/',
-        tag: 'kill',
+        // Unieke tag per kill: verschillende kills stapelen, maar opnieuw
+        // versturen van dezelfde kill vervangt de bestaande melding.
+        tag: `kill-${killId || tijdstip || Date.now()}`,
       }),
       pushNaarMarshalls(supabase, {
         titel: '💀 Kill geregistreerd',
         tekst: `${slachtoffer} uitgeschakeld door ${schutter}. Nieuw doelwit: ${nieuwDoelwit}.${tijd ? ' ' + tijd : ''}`,
         url: '/admin',
-        tag: 'kill-marshall',
+        tag: `kill-m-${killId || tijdstip || Date.now()}`,
       }),
     ]);
 
