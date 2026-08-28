@@ -221,12 +221,14 @@ export async function POST(request) {
       .from('deelnemers').select('*').eq('doelwit_id', id).eq('status', 'actief');
 
     // Registreer kill
+    let killId = null;
     if (schutters?.length > 0) {
-      await supabase.from('kills').insert({
+      const { data: nieuweKill } = await supabase.from('kills').insert({
         schutter_id: schutters[0].id,
         slachtoffer_id: id,
         killcode_gebruikt: killcode_gebruikt || false
-      });
+      }).select('id').single();
+      killId = nieuweKill?.id || null;
     }
 
     // Markeer als geëlimineerd
@@ -298,11 +300,13 @@ export async function POST(request) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        killId,
         schutter: schutterNaam,
         slachtoffer: slachtofferNaam,
         nieuwDoelwit: nieuwDoelwitNaam,
         tijdstip: new Date().toISOString(),
-        aantalLevenden: aantalNa
+        aantalLevenden: aantalNa,
+        kanaal: 'beide'
       })
     }).catch(e => console.error('Notificatie fout:', e));
 

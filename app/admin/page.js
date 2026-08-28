@@ -93,6 +93,7 @@ export default function AdminPage() {
 
   // Herversturing kill bericht
   const [herversturBezig, setHerversturBezig] = useState(false);
+  const [herversturKanaal, setHerversturKanaal] = useState('beide');
   const [killsLijst, setKillsLijst] = useState([]);
   const [topschutterRanking, setTopschutterRanking] = useState([]);
 
@@ -453,6 +454,36 @@ export default function AdminPage() {
     if (res.ok) toonMelding(`✅ Kill bericht verstuurd! Deelnemers: ${json.deelnemers?.verzonden || 0}, Marshalls: ${json.marshalls?.verzonden || 0}`);
     else toonMelding(`❌ ${json.error || 'Fout'}`, 'fout');
     setHerversturBezig(false);
+  }
+
+  async function herverstuurKill(kill, forceer = false) {
+    setHerversturBezig(true);
+    const { res, json } = await api('/api/notificaties', {
+      killId: kill.id,
+      schutter: kill.schutter,
+      slachtoffer: kill.slachtoffer,
+      nieuwDoelwit: '',
+      tijdstip: kill.tijdstip,
+      kanaal: herversturKanaal,
+      forceer,
+    });
+    setHerversturBezig(false);
+
+    if (json?.skipped && json.reden === 'al verstuurd') {
+      const wanneer = new Date(json.verstuurdOp).toLocaleString('nl-BE');
+      if (confirm(`Deze kill-melding is al ${json.aantal}× verstuurd (laatst ${wanneer}).\n\nToch opnieuw versturen?`)) {
+        return herverstuurKill(kill, true);
+      }
+      return;
+    }
+    if (res.ok) {
+      const wa = (json.deelnemers?.verzonden || 0) + (json.marshalls?.verzonden || 0);
+      const pu = (json.push?.deelnemers || 0) + (json.push?.marshalls || 0);
+      toonMelding(`✅ Verstuurd — WhatsApp: ${wa}, push: ${pu}`);
+      await laadKills();
+    } else {
+      toonMelding(`❌ ${json.error || 'Fout'}`, 'fout');
+    }
   }
 
   async function stuurStartBerichtenAlle() {
@@ -1034,6 +1065,16 @@ export default function AdminPage() {
             <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
               Kies een kill en verstuur het bericht opnieuw. Deelnemers krijgen een anoniem bericht, marshalls krijgen alle details.
             </p>
+            <Sel label="Kanaal bij opnieuw versturen" value={herversturKanaal} onChange={setHerversturKanaal}>
+              <option value="beide">WhatsApp + push — naar iedereen</option>
+              <option value="push">Enkel push (gratis) — geen WhatsApp</option>
+              <option value="wa-rest">Push naar iedereen + WhatsApp enkel voor wie geen push heeft</option>
+            </Sel>
+            <div style={{ background:'#0a162888', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#ffffff77', marginBottom:16 }}>
+              {herversturKanaal === 'beide' && 'Volledige verzending — WhatsApp kost geld per deelnemer.'}
+              {herversturKanaal === 'push' && 'Kost niets. Bereikt enkel wie meldingen aanzette.'}
+              {herversturKanaal === 'wa-rest' && 'Goedkoopste combinatie: WhatsApp enkel voor wie (nog) geen push heeft.'}
+            </div>
             {killsLijst.length === 0
               ? <div style={{ color:'#ffffff33', fontStyle:'italic' }}>Nog geen kills geregistreerd.</div>
               : killsLijst.map(kill => (
@@ -1042,24 +1083,14 @@ export default function AdminPage() {
                     <div style={{ color:WIT, fontSize:14, fontWeight:'bold' }}>💀 {kill.slachtoffer}</div>
                     <div style={{ color:'#ffffff66', fontSize:13 }}>Uitgeschakeld door: {kill.schutter}</div>
                     <div style={{ color:'#ffffff44', fontSize:11, marginTop:2 }}>{new Date(kill.tijdstip).toLocaleString('nl-BE')}</div>
-                    <div style={{ color:'#ffffff44', fontSize:11, marginTop:2 }}>
-                      📢 Deelnemers ontvangen: naam slachtoffer + aantal actieve spelers<br/>
-                      👮 Marshalls ontvangen: slachtoffer + schutter + tijdstip
-                    </div>
+                    {kill.notificatieVerstuurdOp
+                      ? <div style={{ color:GD, fontSize:11, marginTop:3 }}>
+                          📨 {kill.notificatieAantal}× verstuurd · laatst {new Date(kill.notificatieVerstuurdOp).toLocaleString('nl-BE')}
+                        </div>
+                      : <div style={{ color:'#ffffff44', fontSize:11, marginTop:3 }}>nog geen melding verstuurd</div>}
                   </div>
                   <Btn
-                    onClick={async () => {
-                      setHerversturBezig(true);
-                      const { res, json } = await api('/api/notificaties', {
-                        schutter: kill.schutter,
-                        slachtoffer: kill.slachtoffer,
-                        nieuwDoelwit: '',
-                        tijdstip: kill.tijdstip,
-                      });
-                      if (res.ok) toonMelding(`✅ Verstuurd! Deelnemers: ${json.deelnemers?.verzonden || 0}, Marshalls: ${json.marshalls?.verzonden || 0}`);
-                      else toonMelding(`❌ ${json.error || 'Fout'}`, 'fout');
-                      setHerversturBezig(false);
-                    }}
+                    onClick={() => herverstuurKill(kill)}
                     disabled={herversturBezig}
                     kleur={RD}
                     klein

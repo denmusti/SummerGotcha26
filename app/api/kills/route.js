@@ -15,21 +15,31 @@ export async function GET(request) {
     }
   }
 
-  const { data: kills } = await supabase
-    .from('kills')
-    .select(`
+  const killVelden = (extra) => `
       id,
-      tijdstip,
+      tijdstip,${extra}
       schutter:schutter_id(voornaam, familienaam),
       slachtoffer:slachtoffer_id(voornaam, familienaam, doelwit_id)
-    `)
+    `;
+  // Val terug op de basisvelden als schema_update8 nog niet gedraaid is
+  let { data: kills } = await supabase
+    .from('kills')
+    .select(killVelden('\n      notificatie_verstuurd_op,\n      notificatie_aantal,'))
     .order('tijdstip', { ascending: false });
+  if (!kills) {
+    ({ data: kills } = await supabase
+      .from('kills')
+      .select(killVelden(''))
+      .order('tijdstip', { ascending: false }));
+  }
 
   // Haal ook het doelwit op dat de schutter na de kill kreeg
   const killsMetDoelwit = await Promise.all((kills || []).map(async k => {
     return {
       id: k.id,
       tijdstip: k.tijdstip,
+      notificatieVerstuurdOp: k.notificatie_verstuurd_op || null,
+      notificatieAantal: k.notificatie_aantal || 0,
       schutter: k.schutter ? `${k.schutter.voornaam} ${k.schutter.familienaam}` : 'Onbekend',
       slachtoffer: k.slachtoffer ? `${k.slachtoffer.voornaam} ${k.slachtoffer.familienaam}` : 'Onbekend',
     };

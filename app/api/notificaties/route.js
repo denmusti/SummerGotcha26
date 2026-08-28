@@ -152,11 +152,49 @@ export async function POST(request) {
     }
 
     // ── Kill bericht ─────────────────────────────────────────
-    const { schutter, slachtoffer, nieuwDoelwit, tijdstip, aantalLevenden } = body;
+    // kanaal: 'beide'   → WhatsApp (iedereen) + push (iedereen)   [standaard]
+    //         'push'    → enkel push, geen WhatsApp
+    //         'wa-rest' → push (iedereen) + WhatsApp enkel naar wie GEEN push heeft
+    const { schutter, slachtoffer, nieuwDoelwit, tijdstip, aantalLevenden, killId } = body;
+    const kanaal = body.kanaal || 'beide';
+    const forceer = !!body.forceer;
 
-    // WhatsApp: kill-berichten gaan naar ALLE deelnemers, ook geëlimineerde
-    const { data: deelnemers } = await supabase.from('deelnemers').select('contact');
-    const deelTels = (deelnemers || []).map((d) => normaliseer(d.contact)).filter(Boolean);
+    // "Al verstuurd"-rem — enkel bij een gekende killId, en te negeren met forceer
+    if (killId) {
+      const { data: k } = await supabase
+        .from('kills')
+        .select('notificatie_verstuurd_op, notificatie_aantal')
+        .eq('id', killId)
+        .single();
+      if (k?.notificatie_verstuurd_op && !forceer) {
+        return Response.json({
+          skipped: true,
+          reden: 'al verstuurd',
+          verstuurdOp: k.notificatie_verstuurd_op,
+          aantal: k.notificatie_aantal || 1,
+        });
+      }
+    }
+
+    const stuurWaDeelnemers = kanaal !== 'push';
+    const stuurWaMarshalls = kanaal !== 'push';
+
+    // Deelnemers ophalen (met id, om de push-abonnees eruit te kunnen filteren)
+    const { data: deelnemers } = await supabase.from('deelnemers').select('id, contact');
+
+    let pushDeelnemerIds = new Set();
+    if (kanaal === 'wa-rest') {
+      const { data: subs } = await supabase
+        .from('push_abonnementen')
+        .select('deelnemer_id')
+        .eq('rol', 'deelnemer');
+      pushDeelnemerIds = new Set((subs || []).map((s) => s.deelnemer_id));
+    }
+
+    const deelTels = (deelnemers || [])
+      .filter((d) => kanaal !== 'wa-rest' || !pushDeelnemerIds.has(d.id))
+      .map((d) => normaliseer(d.contact))
+      .filter(Boolean);
 
     let levendenAantal = aantalLevenden;
     if (levendenAantal === undefined) {
@@ -169,10 +207,10 @@ export async function POST(request) {
       : '';
 
     const [waPubliek, waMarshall, pushPubliek, pushMarshall] = await Promise.all([
-      twilioAan && deelTels.length > 0
+      twilioAan && stuurWaDeelnemers && deelTels.length > 0
         ? stuurKillPubliek(deelTels, levendenAantal, slachtoffer)
         : Promise.resolve({ verzonden: 0, mislukt: 0 }),
-      twilioAan && marshallTels.length > 0
+      twilioAan && stuurWaMarshalls && marshallTels.length > 0
         ? stuurKillMarshall(marshallTels, slachtoffer, schutter, nieuwDoelwit, tijdstip)
         : Promise.resolve({ verzonden: 0, mislukt: 0 }),
       pushNaarAlleDeelnemers(supabase, {
@@ -189,8 +227,21 @@ export async function POST(request) {
       }),
     ]);
 
+    // Markeer de kill als "melding verstuurd"
+    if (killId) {
+      const { data: k } = await supabase.from('kills').select('notificatie_aantal').eq('id', killId).single();
+      await supabase
+        .from('kills')
+        .update({
+          notificatie_verstuurd_op: new Date().toISOString(),
+          notificatie_aantal: (k?.notificatie_aantal || 0) + 1,
+        })
+        .eq('id', killId);
+    }
+
     return Response.json({
       success: true,
+      kanaal,
       deelnemers: waPubliek,
       marshalls: waMarshall,
       push: { deelnemers: pushPubliek.verzonden, marshalls: pushMarshall.verzonden },
