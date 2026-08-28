@@ -66,6 +66,7 @@ export default function AdminPage() {
   const [sw1, setSw1] = useState('');
   const [sw2, setSw2] = useState('');
   const [testLotingPreview, setTestLotingPreview] = useState(null);
+  const [herschommelDatum, setHerschommelDatum] = useState('');
 
   // Eliminaties
   const [elimD, setElimD] = useState('');
@@ -269,6 +270,27 @@ export default function AdminPage() {
     } else {
       toonMelding(`❌ ${json.error}`, 'fout');
     }
+    setBezig(false);
+  }
+
+  async function planHerschommel() {
+    if (!herschommelDatum) { toonMelding('❌ Kies eerst een datum en tijd', 'fout'); return; }
+    const gepland = new Date(herschommelDatum);
+    if (isNaN(gepland.getTime()) || gepland <= new Date()) { toonMelding('❌ Kies een tijdstip in de toekomst', 'fout'); return; }
+    if (!confirm(`📅 Herschommeling plannen voor ${gepland.toLocaleString('nl-BE')}?\n\nDe doelwitten worden dan automatisch herschud door de nachtelijke cron (kan tot een uur later vallen). Iedereen krijgt een WhatsApp-melding zonder details.`)) return;
+    setBezig(true);
+    const { res, json } = await api('/api/loting', { actie:'herschommel_plannen', datum: gepland.toISOString() });
+    if (res.ok) { toonMelding(`✅ Herschommeling gepland voor ${gepland.toLocaleString('nl-BE')}`); setHerschommelDatum(''); await laadData(); }
+    else toonMelding(`❌ ${json.error}`, 'fout');
+    setBezig(false);
+  }
+
+  async function annuleerHerschommel() {
+    if (!confirm('Geplande herschommeling annuleren?')) return;
+    setBezig(true);
+    const { res, json } = await api('/api/loting', { actie:'herschommel_annuleren' });
+    if (res.ok) { toonMelding('✅ Geplande herschommeling geannuleerd'); await laadData(); }
+    else toonMelding(`❌ ${json.error}`, 'fout');
     setBezig(false);
   }
 
@@ -672,6 +694,30 @@ export default function AdminPage() {
                 <Btn onClick={herschommelKetting} disabled={bezig || actief.length < 2} kleur={RD}>
                   🔀 Herschommel nu ({actief.length} spelers)
                 </Btn>
+
+                <div style={{ borderTop:'1px solid #ffffff22', margin:'20px 0 16px' }} />
+                <Label t="📅 Of plan een herschommeling" />
+                {data?.herschommelGeplandOp ? (
+                  <div style={{ background:'#1A6B9E22', border:'1px solid #1A6B9E', borderRadius:10, padding:'12px 14px', fontSize:13, color:WIT }}>
+                    <div style={{ marginBottom:10 }}>
+                      ⏰ Gepland voor <strong>{new Date(data.herschommelGeplandOp).toLocaleString('nl-BE')}</strong>
+                      <span style={{ color:'#ffffff88' }}> — wordt automatisch uitgevoerd door de nachtelijke cron (kan tot een uur later vallen).</span>
+                    </div>
+                    <Btn onClick={annuleerHerschommel} disabled={bezig} kleur="#333" klein>✕ Annuleer planning</Btn>
+                  </div>
+                ) : (
+                  <div style={{ display:'flex', gap:12, flexWrap:'wrap', alignItems:'center' }}>
+                    <input
+                      type="datetime-local"
+                      value={herschommelDatum}
+                      onChange={e => setHerschommelDatum(e.target.value)}
+                      style={{ ...inp, width:'auto', flex:'1 1 220px' }}
+                    />
+                    <Btn onClick={planHerschommel} disabled={bezig || actief.length < 2 || !herschommelDatum} kleur={BM}>
+                      📅 Plan herschommeling
+                    </Btn>
+                  </div>
+                )}
               </Vak>
             );
           })()}

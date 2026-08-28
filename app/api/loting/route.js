@@ -1,6 +1,6 @@
 // app/api/loting/route.js
 import { getSupabaseServer } from '../../../lib/supabase';
-import { stuurNaarLijst } from '../../../lib/whatsapp';
+import { genereerKetting, voerHerschommel } from '../../../lib/herschommel';
 
 async function checkWachtwoord(supabase, wachtwoord) {
   // Check admin wachtwoord
@@ -12,44 +12,8 @@ async function checkWachtwoord(supabase, wachtwoord) {
   return !!marshall;
 }
 
-function genereerKetting(deelnemers) {
-  // Sato-algoritme: genereer een gegarandeerd gesloten ketting (Hamiltoniaanse cykel)
-  // Stap 1: maak een random permutatie
-  const n = deelnemers.length;
-  const indices = Array.from({ length: n }, (_, i) => i);
-  
-  // Fisher-Yates shuffle
-  for (let i = n - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [indices[i], indices[j]] = [indices[j], indices[i]];
-  }
-  
-  // Stap 2: bouw één gesloten ketting via de geshuffle volgorde
-  // Deelnemer op positie i krijgt deelnemer op positie (i+1) % n als doelwit
-  // Dit garandeert altijd precies één ketting
-  const doelwitten = new Array(n);
-  for (let i = 0; i < n; i++) {
-    doelwitten[indices[i]] = indices[(i + 1) % n];
-  }
-  
-  // Valideer: geen zelfkoppelingen
-  if (doelwitten.some((d, i) => d === i)) {
-    // Herstel: wissel de twee zelfkoppelingen
-    for (let i = 0; i < n; i++) {
-      if (doelwitten[i] === i) {
-        // Zoek een ander element om mee te wisselen
-        for (let j = i + 1; j < n; j++) {
-          if (doelwitten[j] !== i && doelwitten[i] !== j) {
-            [doelwitten[i], doelwitten[j]] = [doelwitten[j], doelwitten[i]];
-            break;
-          }
-        }
-      }
-    }
-  }
-  
-  return doelwitten;
-}
+// genereerKetting() en de volledige herschommel-logica staan nu in lib/herschommel.js
+// (gedeeld met de cron job voor geplande herschommelingen).
 
 export async function POST(request) {
   const supabase = getSupabaseServer();
@@ -139,57 +103,38 @@ export async function POST(request) {
   // Herschommel — herschud enkel de ketting van de NOG ACTIEVE spelers, ook tijdens het lopende spel
   // Bedoeld voor de eindfase: voorkomt dat een kleine, doorzichtige cirkel de spanning wegneemt
   if (actie === 'herschommel') {
-    const { data: deelnemers, error } = await supabase
-      .from('deelnemers')
-      .select('*')
-      .eq('status', 'actief')
-      .order('nummer', { ascending: true });
+    const r = await voerHerschommel(supabase, { bron: 'handmatig' });
+    if (!r.ok) return Response.json({ error: r.error }, { status: r.status || 500 });
+    // Een eventueel geplande herschommeling blijft staan — beide werken los van elkaar.
+    return Response.json({ success: true, aantalDeelnemers: r.aantalDeelnemers });
+  }
 
+  // Herschommeling plannen — zet een datum/tijd; de dagelijkse cron voert ze dan automatisch uit
+  if (actie === 'herschommel_plannen') {
+    const { datum } = body;
+    const gepland = new Date(datum);
+    if (!datum || isNaN(gepland.getTime())) {
+      return Response.json({ error: 'Ongeldige datum' }, { status: 400 });
+    }
+    if (gepland <= new Date()) {
+      return Response.json({ error: 'Kies een tijdstip in de toekomst' }, { status: 400 });
+    }
+    const { error } = await supabase
+      .from('stats')
+      .update({ herschommel_gepland_op: gepland.toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', 1);
     if (error) return Response.json({ error: error.message }, { status: 500 });
-    if (!deelnemers || deelnemers.length < 2) {
-      return Response.json({ error: 'Minimum 2 actieve deelnemers nodig om te herschommelen' }, { status: 400 });
-    }
+    return Response.json({ success: true, herschommelGeplandOp: gepland.toISOString() });
+  }
 
-    const doelwit_indices = genereerKetting(deelnemers);
-    if (!doelwit_indices) {
-      return Response.json({ error: 'Herschommelen mislukt' }, { status: 500 });
-    }
-
-    // Sla de nieuwe koppeling op
-    for (let i = 0; i < deelnemers.length; i++) {
-      const schutter = deelnemers[i];
-      const doelwit = deelnemers[doelwit_indices[i]];
-      await supabase.from('deelnemers').update({ doelwit_id: doelwit.id }).eq('id', schutter.id);
-    }
-
-    // Reset aanpassingstellers van alle marshalls — nieuwe ronde, nieuwe kansen
-    const { data: alleMarshalls } = await supabase.from('marshalls').select('id');
-    if (alleMarshalls?.length) {
-      const ids = alleMarshalls.map(m => m.id);
-      await supabase.from('marshalls').update({ aanpassingen: 0 }).in('id', ids);
-    }
-
-    // Tijdlijnbericht — zonder de nieuwe koppelingen te onthullen
-    await supabase.from('tijdlijn').insert({
-      tekst: `🔀 De doelwitten van alle ${deelnemers.length} overgebleven spelers zijn opnieuw geschud!`
-    });
-
-    // WhatsApp naar alle nog actieve spelers — zonder details, enkel dat er iets veranderd is
-    const telefoons = deelnemers
-      .map(d => d.contact)
-      .filter(Boolean)
-      .map(tel => {
-        const schoon = tel.replace(/[^0-9]/g, '');
-        if (schoon.startsWith('04')) return '+32' + schoon.substring(1);
-        if (schoon.startsWith('32')) return '+' + schoon;
-        return tel.startsWith('+') ? tel : null;
-      })
-      .filter(Boolean);
-    if (telefoons.length > 0) {
-      stuurNaarLijst(telefoons, { "1": `De doelwitten zijn herschud! Check je nieuwe doelwit in de app` }).catch(() => {});
-    }
-
-    return Response.json({ success: true, aantalDeelnemers: deelnemers.length });
+  // Geplande herschommeling annuleren
+  if (actie === 'herschommel_annuleren') {
+    const { error } = await supabase
+      .from('stats')
+      .update({ herschommel_gepland_op: null, updated_at: new Date().toISOString() })
+      .eq('id', 1);
+    if (error) return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ success: true });
   }
 
   // Marshall aanpassing — wissel doelwitten van 2 deelnemers

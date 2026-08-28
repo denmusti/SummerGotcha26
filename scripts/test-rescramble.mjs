@@ -17,7 +17,8 @@ try {
   }
 } catch { console.error('Geen .env.local'); process.exit(1); }
 
-// ---- EXACTE KOPIE van genereerKetting() uit app/api/loting/route.js ----
+// ---- EXACTE KOPIE van genereerKetting() uit lib/herschommel.js ----
+// (letterlijk overgenomen; Node kan de ESM-module niet los importeren zonder build)
 function genereerKetting(deelnemers) {
   const n = deelnemers.length;
   const indices = Array.from({ length: n }, (_, i) => i);

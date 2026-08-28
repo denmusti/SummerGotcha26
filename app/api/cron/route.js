@@ -1,9 +1,12 @@
 // app/api/cron/route.js
-// Vercel Cron Job — wordt automatisch aangeroepen op de startdatum
-// Configureer in vercel.json
+// Vercel Cron Job — draait dagelijks (zie vercel.json: "0 22 * * *" = middernacht Belgische tijd).
+// Doet twee dingen, elk met eigen guard zodat dagelijks draaien onschadelijk is:
+//   1. Startberichten versturen als het spel net gestart is
+//   2. Een geplande herschommeling uitvoeren als het geplande tijdstip bereikt is
 
 import { getSupabaseServer } from '../../../lib/supabase';
-import { stuurStartBericht } from '../../../lib/whatsapp';
+import { stuurStartBericht, stuurNaarLijst } from '../../../lib/whatsapp';
+import { voerHerschommel } from '../../../lib/herschommel';
 
 export async function GET(request) {
   // Vercel cron authenticatie
@@ -13,16 +16,25 @@ export async function GET(request) {
   }
 
   const supabase = getSupabaseServer();
-
-  // Controleer of het spel net gestart is (binnen het laatste uur)
   const { data: stats } = await supabase.from('stats').select('*').eq('id', 1).single();
   const nu = new Date();
+
+  const resultaat = {
+    start: await verwerkStart(supabase, stats, nu),
+    herschommel: await verwerkGeplandeHerschommel(supabase, stats, nu),
+  };
+
+  return Response.json(resultaat);
+}
+
+// ── 1. Startberichten ────────────────────────────────────────
+async function verwerkStart(supabase, stats, nu) {
   const start = new Date(stats?.start_datum);
   const verschil = nu - start;
 
   // Enkel uitvoeren als we binnen 1 uur na de startdatum zitten
   if (verschil < 0 || verschil > 3600000) {
-    return Response.json({ skipped: true, reden: 'Niet in het startvenster' });
+    return { skipped: true, reden: 'Niet in het startvenster' };
   }
 
   // Controleer of startberichten al verstuurd zijn
@@ -33,7 +45,7 @@ export async function GET(request) {
     .limit(1);
 
   if (alVerstuurd?.length > 0) {
-    return Response.json({ skipped: true, reden: 'Startberichten al verstuurd' });
+    return { skipped: true, reden: 'Startberichten al verstuurd' };
   }
 
   // Haal alle actieve deelnemers op
@@ -63,7 +75,6 @@ export async function GET(request) {
 
   let marshallVerzonden = 0;
   for (const m of (marshalls || [])) {
-    const { stuurNaarLijst } = await import('../../../lib/whatsapp.js');
     const res = await stuurNaarLijst([m.telefoon], {
       "1": `Spel gestart! Als marshall van Summer Gotcha 2026 ben je nu actief. Beheer via: ${process.env.NEXT_PUBLIC_APP_URL || 'summer-gotcha26.vercel.app'}/admin`
     });
@@ -75,5 +86,35 @@ export async function GET(request) {
     tekst: '🚀 Het spel is officieel gestart! Startberichten verstuurd.'
   });
 
-  return Response.json({ success: true, verzonden, mislukt, marshallVerzonden });
+  return { success: true, verzonden, mislukt, marshallVerzonden };
+}
+
+// ── 2. Geplande herschommeling ───────────────────────────────
+async function verwerkGeplandeHerschommel(supabase, stats, nu) {
+  const gepland = stats?.herschommel_gepland_op ? new Date(stats.herschommel_gepland_op) : null;
+  if (!gepland || isNaN(gepland.getTime())) {
+    return { skipped: true, reden: 'Geen herschommeling gepland' };
+  }
+  // 5 min speling zodat een cron die net iets te vroeg afgaat een middernacht-planning niet een dag opschuift
+  const GRACE_MS = 5 * 60 * 1000;
+  if (nu.getTime() < gepland.getTime() - GRACE_MS) {
+    return { skipped: true, reden: `Gepland voor ${gepland.toISOString()}` };
+  }
+
+  // Alleen tijdens een lopend spel
+  const start = new Date(stats?.start_datum);
+  const eind = new Date(stats?.eind_datum);
+  if (nu < start || nu > eind) {
+    // Buiten de speelperiode: plan gewoon opruimen, niets doen
+    await supabase.from('stats').update({ herschommel_gepland_op: null }).eq('id', 1);
+    return { skipped: true, reden: 'Buiten de speelperiode — planning gewist' };
+  }
+
+  const r = await voerHerschommel(supabase, { bron: 'gepland' });
+
+  // Planning altijd wissen zodat ze niet opnieuw afgaat
+  await supabase.from('stats').update({ herschommel_gepland_op: null, updated_at: new Date().toISOString() }).eq('id', 1);
+
+  if (!r.ok) return { success: false, fout: r.error };
+  return { success: true, aantalDeelnemers: r.aantalDeelnemers };
 }

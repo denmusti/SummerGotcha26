@@ -50,6 +50,7 @@ export async function GET() {
     aantalTopschutters: maxKills > 0 ? aantalTopschutters : 0,
     startDatum: stats.start_datum,
     eindDatum: stats.eind_datum,
+    herschommelGeplandOp: stats.herschommel_gepland_op || null,
     marshallAanpassingen: stats.marshall_aanpassingen || {},
     tijdlijn: tijdlijn.map(t => ({
       id: t.id,
