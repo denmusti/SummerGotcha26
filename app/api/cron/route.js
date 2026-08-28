@@ -1,13 +1,15 @@
 // app/api/cron/route.js
 // Vercel Cron Job — draait dagelijks (zie vercel.json: "0 22 * * *" = middernacht Belgische tijd).
-// Doet twee dingen, elk met eigen guard zodat dagelijks draaien onschadelijk is:
+// Doet drie dingen, elk met eigen guard zodat dagelijks draaien onschadelijk is:
 //   1. Startberichten versturen als het spel net gestart is
 //   2. Een geplande herschommeling uitvoeren als het geplande tijdstip bereikt is
+//   3. Eindbericht versturen als de einddatum voorbij is (of nog ≤ 1 speler over)
 
 import { getSupabaseServer } from '../../../lib/supabase';
 import { stuurStartBericht, stuurNaarLijst } from '../../../lib/whatsapp';
 import { pushNaarEenDeelnemer, pushNaarMarshalls } from '../../../lib/push';
 import { voerHerschommel } from '../../../lib/herschommel';
+import { verstuurEindeBericht } from '../../../lib/einde';
 
 export async function GET(request) {
   // Vercel cron authenticatie
@@ -23,9 +25,28 @@ export async function GET(request) {
   const resultaat = {
     start: await verwerkStart(supabase, stats, nu),
     herschommel: await verwerkGeplandeHerschommel(supabase, stats, nu),
+    einde: await verwerkEinde(supabase, stats, nu),
   };
 
   return Response.json(resultaat);
+}
+
+// ── 3. Eindbericht ───────────────────────────────────────────
+async function verwerkEinde(supabase, stats, nu) {
+  if (stats?.einde_bericht_verstuurd_op) {
+    return { skipped: true, reden: 'al verstuurd' };
+  }
+  const gestart = stats?.start_datum && nu >= new Date(stats.start_datum);
+  if (!gestart) return { skipped: true, reden: 'spel nog niet gestart' };
+
+  const eind = stats?.eind_datum ? new Date(stats.eind_datum) : null;
+  const { data: levendeData } = await supabase.from('deelnemers').select('id').eq('status', 'actief');
+  const levenden = levendeData?.length || 0;
+
+  const spelGedaan = (eind && nu > eind) || levenden <= 1;
+  if (!spelGedaan) return { skipped: true, reden: 'spel nog bezig' };
+
+  return verstuurEindeBericht(supabase, { kanaal: 'beide' });
 }
 
 // ── 1. Startberichten ────────────────────────────────────────

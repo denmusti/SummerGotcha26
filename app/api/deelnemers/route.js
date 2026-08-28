@@ -310,6 +310,15 @@ export async function POST(request) {
       })
     }).catch(e => console.error('Notificatie fout:', e));
 
+    // Laatste speler over → automatisch eindbericht (guard voorkomt dubbel)
+    if (aantalNa <= 1) {
+      fetch(`${baseUrl}/api/notificaties`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actie: 'einde', kanaal: 'beide' })
+      }).catch(e => console.error('Einde-bericht fout:', e));
+    }
+
     await updateStats(supabase);
     return Response.json({ success: true });
   }

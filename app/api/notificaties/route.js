@@ -11,6 +11,7 @@ import {
   pushNaarEenDeelnemer,
   pushNaarMarshalls,
 } from '../../../lib/push';
+import { verstuurEindeBericht } from '../../../lib/einde';
 
 const normaliseer = (tel) => {
   if (!tel) return null;
@@ -76,6 +77,15 @@ export async function POST(request) {
         deelnemers: { verzonden: 0, mislukt: 0 },
         push,
       });
+    }
+
+    // ── Eindbericht van het spel ───────────────────────────
+    if (body.actie === 'einde') {
+      const r = await verstuurEindeBericht(supabase, {
+        kanaal: body.kanaal || 'beide',
+        forceer: !!body.forceer,
+      });
+      return Response.json(r);
     }
 
     // ── Startbericht naar één deelnemer ─────────────────────

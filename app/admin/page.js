@@ -95,6 +95,8 @@ export default function AdminPage() {
   const [herversturBezig, setHerversturBezig] = useState(false);
   const [herversturKanaal, setHerversturKanaal] = useState('beide');
   const [testKanaal, setTestKanaal] = useState('beide');
+  const [eindeKanaal, setEindeKanaal] = useState('beide');
+  const [eindeBezig, setEindeBezig] = useState(false);
   const [killsLijst, setKillsLijst] = useState([]);
   const [topschutterRanking, setTopschutterRanking] = useState([]);
 
@@ -482,6 +484,29 @@ export default function AdminPage() {
       const pu = (json.push?.deelnemers || 0) + (json.push?.marshalls || 0);
       toonMelding(`✅ Verstuurd — WhatsApp: ${wa}, push: ${pu}`);
       await laadKills();
+    } else {
+      toonMelding(`❌ ${json.error || 'Fout'}`, 'fout');
+    }
+  }
+
+  async function stuurEindeBericht(forceer = false) {
+    setEindeBezig(true);
+    const { res, json } = await api('/api/notificaties', { actie: 'einde', kanaal: eindeKanaal, forceer });
+    setEindeBezig(false);
+
+    if (json?.skipped && json.reden === 'al verstuurd') {
+      const wanneer = new Date(json.verstuurdOp).toLocaleString('nl-BE');
+      if (confirm(`Het eindbericht is al verstuurd (${wanneer}).\n\nToch opnieuw versturen?`)) {
+        return stuurEindeBericht(true);
+      }
+      return;
+    }
+    if (json?.skipped) { toonMelding(`⏭️ ${json.reden}`, 'fout'); return; }
+    if (res.ok && json.success) {
+      const wa = (json.deelnemers?.verzonden || 0) + (json.marshalls?.verzonden || 0);
+      const pu = (json.push?.deelnemers || 0) + (json.push?.marshalls || 0);
+      toonMelding(`✅ Eindbericht verstuurd — winnaar: ${json.winnaar} · WhatsApp: ${wa}, push: ${pu}`);
+      await laadData();
     } else {
       toonMelding(`❌ ${json.error || 'Fout'}`, 'fout');
     }
@@ -1116,6 +1141,22 @@ export default function AdminPage() {
             <p style={{ color:'#ffffff33', fontSize:11, marginTop:10 }}>
               ⚠️ Dit stuurt een persoonlijk bericht naar alle actieve deelnemers én marshalls. Gebruik enkel als de automatische cron gefaald heeft.
             </p>
+          </Vak>
+
+          <Vak titel="🏁 Eindbericht versturen" kleur={GD}>
+            <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
+              <strong style={{ color:WIT }}>🏆 {'{winnaar}'} wint Summer Gotcha 2026! ({'{n}'} eliminaties)</strong> naar alle deelnemers + marshalls, plus een regel in de publieke tijdlijn.
+              Gaat <strong style={{ color:WIT }}>automatisch</strong> zodra er nog ≤ 1 speler over is, of na de einddatum (nachtelijke cron). Deze knop is voor handmatig (opnieuw) versturen.
+            </p>
+            <Sel label="Kanaal" value={eindeKanaal} onChange={setEindeKanaal}>
+              <option value="beide">WhatsApp + push — iedereen</option>
+              <option value="push">Enkel push (gratis)</option>
+              <option value="wa-rest">Push + WhatsApp enkel voor wie geen push heeft</option>
+              <option value="whatsapp">Enkel WhatsApp</option>
+            </Sel>
+            <Btn onClick={()=>stuurEindeBericht(false)} disabled={eindeBezig} kleur={GD}>
+              {eindeBezig ? 'Bezig…' : '🏁 Verstuur eindbericht'}
+            </Btn>
           </Vak>
         </>}
 
