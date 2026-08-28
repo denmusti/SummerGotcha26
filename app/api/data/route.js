@@ -9,14 +9,12 @@ export async function GET() {
     { data: stats, error: statsErr },
     { data: tijdlijn, error: tijdlijnErr },
     { data: alleDeelnemers },
-    { data: levendeDeelnemers },
-    { data: topKills },
+    { data: alleKills },
   ] = await Promise.all([
     supabase.from('stats').select('*').eq('id', 1).single(),
     supabase.from('tijdlijn').select('*').order('tijdstip', { ascending: false }).limit(50),
-    supabase.from('deelnemers').select('id'),
-    supabase.from('deelnemers').select('id').eq('status', 'actief'),
-    supabase.from('kills').select('schutter_id'),
+    supabase.from('deelnemers').select('id, voornaam, familienaam, foto_url, status, geelinimineerd_op'),
+    supabase.from('kills').select('schutter_id, tijdstip'),
   ]);
 
   if (statsErr || tijdlijnErr) {
@@ -24,16 +22,69 @@ export async function GET() {
     return Response.json({ error: 'Databasefout' }, { status: 500 });
   }
 
-  const totaal = alleDeelnemers?.length || 0;
-  const levenden = levendeDeelnemers?.length || 0;
+  const deelnemersLijst = alleDeelnemers || [];
+  const totaal = deelnemersLijst.length;
+  const levenden = deelnemersLijst.filter(d => d.status === 'actief').length;
 
   // Bereken topschutter correct
-  const killData = Array.isArray(topKills) ? topKills : [];
+  const killData = Array.isArray(alleKills) ? alleKills : [];
   const tellerPerSchutter = {};
-  killData.forEach(k => { tellerPerSchutter[k.schutter_id] = (tellerPerSchutter[k.schutter_id] || 0) + 1; });
+  const eersteKillPerSchutter = {};
+  killData.forEach(k => {
+    tellerPerSchutter[k.schutter_id] = (tellerPerSchutter[k.schutter_id] || 0) + 1;
+    const t = new Date(k.tijdstip).getTime();
+    if (!(k.schutter_id in eersteKillPerSchutter) || t < eersteKillPerSchutter[k.schutter_id]) {
+      eersteKillPerSchutter[k.schutter_id] = t;
+    }
+  });
   const maxKills = killData.length > 0 ? Math.max(...Object.values(tellerPerSchutter)) : 0;
   const aantalTopschutters = Object.values(tellerPerSchutter).filter(v => v === maxKills).length;
   const topschutter = maxKills;
+
+  // ── Winnaarsoverzicht — enkel als het spel gedaan is ──────────
+  // Gedaan = na de einddatum OF nog maar 1 (of 0) overlevende
+  const nu = new Date();
+  const spelGedaan = (stats.eind_datum && nu > new Date(stats.eind_datum)) || levenden <= 1;
+
+  let winnaars = null;
+  if (spelGedaan && totaal > 0) {
+    const verrijk = d => ({
+      naam: `${d.voornaam} ${d.familienaam}`,
+      foto_url: d.foto_url || null,
+      status: d.status,
+      kills: tellerPerSchutter[d.id] || 0,
+      eersteKill: eersteKillPerSchutter[d.id] || null,
+    });
+
+    // Overlevenden: meeste kills eerst; ex aequo -> vroegste eerste kill eerst
+    const overlevenden = deelnemersLijst
+      .filter(d => d.status === 'actief')
+      .map(verrijk)
+      .sort((a, b) => {
+        if (b.kills !== a.kills) return b.kills - a.kills;
+        return (a.eersteKill ?? Infinity) - (b.eersteKill ?? Infinity);
+      });
+
+    // Topkillers: iedereen met >= 1 kill; meeste kills eerst,
+    // ex aequo -> nog in leven vóór dood, dan vroegste eerste kill eerst
+    const topkillers = deelnemersLijst
+      .filter(d => (tellerPerSchutter[d.id] || 0) > 0)
+      .map(verrijk)
+      .sort((a, b) => {
+        if (b.kills !== a.kills) return b.kills - a.kills;
+        const aLeeft = a.status === 'actief' ? 0 : 1;
+        const bLeeft = b.status === 'actief' ? 0 : 1;
+        if (aLeeft !== bLeeft) return aLeeft - bLeeft;
+        return (a.eersteKill ?? Infinity) - (b.eersteKill ?? Infinity);
+      });
+
+    winnaars = {
+      winnaar: overlevenden[0] || null,
+      overlevenden,
+      topkiller: topkillers[0] || null,
+      topkillers,
+    };
+  }
 
   // Sync tellers terug naar stats tabel (stille achtergrondtaak)
   supabase.from('stats').update({
@@ -51,6 +102,8 @@ export async function GET() {
     startDatum: stats.start_datum,
     eindDatum: stats.eind_datum,
     herschommelGeplandOp: stats.herschommel_gepland_op || null,
+    spelGedaan,
+    winnaars,
     marshallAanpassingen: stats.marshall_aanpassingen || {},
     tijdlijn: tijdlijn.map(t => ({
       id: t.id,

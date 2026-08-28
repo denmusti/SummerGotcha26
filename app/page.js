@@ -125,6 +125,108 @@ function TijdlijnItem({ item }) {
   );
 }
 
+function Erelijst({ titel, icon, kleur, items, uitgelicht }) {
+  return (
+    <div style={{
+      background: `linear-gradient(135deg, ${BLAUW_DONKER}aa, #0a1628aa)`,
+      border: `1px solid #ffffff22`,
+      borderRadius: 16,
+      padding: '20px 24px',
+      marginBottom: 20,
+    }}>
+      <div style={{ color: kleur, fontSize: 13, letterSpacing: 3, textTransform: 'uppercase', marginBottom: 14 }}>
+        {icon} {titel}
+      </div>
+      {items.length === 0 ? (
+        <div style={{ color: '#ffffff33', fontStyle: 'italic', padding: '8px 0' }}>Niemand.</div>
+      ) : items.map((p, i) => {
+        const isTop = uitgelicht && i === 0;
+        return (
+          <div key={i} style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            padding: '10px 0', borderBottom: i < items.length - 1 ? '1px solid #ffffff11' : 'none',
+          }}>
+            <div style={{
+              width: 26, textAlign: 'center', fontWeight: 'bold',
+              color: isTop ? GOUD : '#ffffff55', fontSize: isTop ? 18 : 14,
+            }}>{i === 0 && uitgelicht ? '🥇' : i + 1}</div>
+            <div style={{
+              width: 40, height: 48, borderRadius: 6, overflow: 'hidden', flexShrink: 0,
+              background: `linear-gradient(135deg, ${kleur}33, ${BLAUW_DONKER})`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+            }}>
+              {p.foto_url ? <img src={p.foto_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🔫'}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ color: isTop ? GOUD : WIT, fontSize: 15, fontWeight: isTop ? 'bold' : 'normal' }}>{p.naam}</div>
+              <div style={{ color: '#ffffff44', fontSize: 12, marginTop: 2 }}>
+                {p.status === 'actief' ? '💚 overleefde' : '💀 geëlimineerd'}
+              </div>
+            </div>
+            <div style={{ color: isTop ? GOUD : ACCENT, fontSize: 18, fontWeight: 'bold' }}>
+              {p.kills} <span style={{ fontSize: 12, color: '#ffffff55', fontWeight: 'normal' }}>kill{p.kills === 1 ? '' : 's'}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function WinnaarsOverzicht({ winnaars }) {
+  const { winnaar, overlevenden, topkiller, topkillers } = winnaars;
+  return (
+    <div style={{ marginBottom: 32 }}>
+      {winnaar && (
+        <div style={{
+          background: `linear-gradient(135deg, ${BLAUW_DONKER}, #1a0a2e)`,
+          border: `2px solid ${GOUD}`,
+          borderRadius: 16,
+          padding: '28px 24px',
+          textAlign: 'center',
+          marginBottom: 20,
+          boxShadow: `0 0 35px ${GOUD}44`,
+        }}>
+          <div style={{ color: GOUD, fontSize: 13, letterSpacing: 4, textTransform: 'uppercase', marginBottom: 12 }}>
+            🏆 De winnaar van Summer Gotcha 2026
+          </div>
+          {winnaar.foto_url && (
+            <img src={winnaar.foto_url} alt="" style={{
+              width: 110, height: 130, objectFit: 'cover', borderRadius: 12,
+              border: `2px solid ${GOUD}`, marginBottom: 14,
+            }} />
+          )}
+          <div style={{ color: GOUD, fontSize: 'clamp(24px, 5vw, 36px)', fontWeight: 'bold' }}>{winnaar.naam}</div>
+          <div style={{ color: '#ffffff88', fontSize: 14, marginTop: 6 }}>
+            overleefde met {winnaar.kills} eliminatie{winnaar.kills === 1 ? '' : 's'}
+          </div>
+        </div>
+      )}
+
+      <Erelijst titel="Overlevenden" icon="💚" kleur="#2ecc71" items={overlevenden} uitgelicht />
+
+      {topkiller && (
+        <div style={{
+          background: `linear-gradient(135deg, ${BLAUW_DONKER}cc, ${ROOD}22)`,
+          border: `2px solid ${ROOD}`,
+          borderRadius: 16,
+          padding: '18px 24px',
+          textAlign: 'center',
+          marginBottom: 20,
+        }}>
+          <div style={{ color: ROOD, fontSize: 13, letterSpacing: 3, textTransform: 'uppercase', marginBottom: 4 }}>💀 Topkiller</div>
+          <div style={{ color: WIT, fontSize: 26, fontWeight: 'bold' }}>{topkiller.naam}</div>
+          <div style={{ color: '#ffffff66', fontSize: 13, marginTop: 4 }}>
+            {topkiller.kills} eliminaties · {topkiller.status === 'actief' ? '💚 nog in leven' : '💀 geëlimineerd'}
+          </div>
+        </div>
+      )}
+
+      <Erelijst titel="Alle scherpschutters" icon="🎯" kleur={ROOD} items={topkillers} uitgelicht />
+    </div>
+  );
+}
+
 export default function PubliekePage() {
   const [data, setData] = useState(null);
   const [laden, setLaden] = useState(true);
@@ -181,6 +283,9 @@ export default function PubliekePage() {
             {/* Afteltimer */}
             <Afteltimer eindDatum={data.eindDatum} startDatum={data.startDatum} />
 
+            {/* Winnaarsoverzicht — enkel als het spel gedaan is */}
+            {data.spelGedaan && data.winnaars && <WinnaarsOverzicht winnaars={data.winnaars} />}
+
             {/* Stats */}
             <div style={{ display: 'flex', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
               <StatKaart
@@ -203,23 +308,25 @@ export default function PubliekePage() {
               />
             </div>
 
-            {/* Topschutter */}
-            <div style={{
-              background: `linear-gradient(135deg, ${BLAUW_DONKER}cc, #1a0a2ecc)`,
-              border: `2px solid ${GOUD}`,
-              borderRadius: 16,
-              padding: '20px 24px',
-              marginBottom: 32,
-              textAlign: 'center',
-              boxShadow: `0 0 25px ${GOUD}33`
-            }}>
-              <div style={{ color: GOUD, fontSize: 13, letterSpacing: 3, textTransform: 'uppercase', marginBottom: 4 }}>🏆 Topschutter</div>
-              <div style={{ color: GOUD, fontSize: 42, fontWeight: 'bold' }}>
-                {data.topschutterAantal}
-                {data.aantalTopschutters > 1 && <span style={{ color: '#ffffff88', fontSize: 18, marginLeft: 8 }}>({data.aantalTopschutters} schutters)</span>}
+            {/* Topschutter (anoniem tijdens het spel; na afloop toont het winnaarsoverzicht de namen) */}
+            {!data.spelGedaan && (
+              <div style={{
+                background: `linear-gradient(135deg, ${BLAUW_DONKER}cc, #1a0a2ecc)`,
+                border: `2px solid ${GOUD}`,
+                borderRadius: 16,
+                padding: '20px 24px',
+                marginBottom: 32,
+                textAlign: 'center',
+                boxShadow: `0 0 25px ${GOUD}33`
+              }}>
+                <div style={{ color: GOUD, fontSize: 13, letterSpacing: 3, textTransform: 'uppercase', marginBottom: 4 }}>🏆 Topschutter</div>
+                <div style={{ color: GOUD, fontSize: 42, fontWeight: 'bold' }}>
+                  {data.topschutterAantal}
+                  {data.aantalTopschutters > 1 && <span style={{ color: '#ffffff88', fontSize: 18, marginLeft: 8 }}>({data.aantalTopschutters} schutters)</span>}
+                </div>
+                <div style={{ color: '#ffffff66', fontSize: 13, marginTop: 4 }}>eliminaties — identiteit geheim</div>
               </div>
-              <div style={{ color: '#ffffff66', fontSize: 13, marginTop: 4 }}>eliminaties — identiteit geheim</div>
-            </div>
+            )}
 
             {/* Tijdlijn */}
             <div style={{
