@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import PushKnop from '../components/PushKnop';
 
 const BD = '#0D3B6E', BM = '#1A6B9E', AC = '#00B4D8';
 const RD = '#C0392B', RL = '#FADBD8';
@@ -877,6 +878,13 @@ export default function AdminPage() {
 
         {/* ── WHATSAPP ── */}
         {tab==='whatsapp' && <>
+          <Vak titel="🔔 Gratis meldingen (web-push)" kleur={AC}>
+            <p style={{ color:'#ffffff66', fontSize:13, marginTop:0 }}>
+              Zet meldingen aan op dit toestel. Marshalls krijgen dan kill- en startmeldingen rechtstreeks in de browser — gratis, naast WhatsApp.
+            </p>
+            <PushKnop auth={{ wachtwoord: ww }} compact />
+          </Vak>
+
           <Vak titel="📱 WhatsApp via Twilio - instellingen">
             <div style={{ background:'#0a162888', borderRadius:12, padding:16, marginBottom:20, border:'1px solid #ffffff22' }}>
               <p style={{ color:GD, fontWeight:'bold', fontSize:13, margin:'0 0 10px' }}>

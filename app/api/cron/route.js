@@ -6,6 +6,7 @@
 
 import { getSupabaseServer } from '../../../lib/supabase';
 import { stuurStartBericht, stuurNaarLijst } from '../../../lib/whatsapp';
+import { pushNaarEenDeelnemer, pushNaarMarshalls } from '../../../lib/push';
 import { voerHerschommel } from '../../../lib/herschommel';
 
 export async function GET(request) {
@@ -51,20 +52,30 @@ async function verwerkStart(supabase, stats, nu) {
   // Haal alle actieve deelnemers op
   const { data: deelnemers } = await supabase
     .from('deelnemers')
-    .select('voornaam, familienaam, contact, toegangscode, killcode')
+    .select('id, voornaam, familienaam, contact, toegangscode, killcode')
     .eq('status', 'actief');
 
   let verzonden = 0, mislukt = 0;
   for (const d of (deelnemers || [])) {
-    if (!d.contact) { mislukt++; continue; }
-    const res = await stuurStartBericht(
-      d.contact,
-      `${d.voornaam} ${d.familienaam}`,
-      d.toegangscode,
-      d.killcode
-    );
-    if (res.success) verzonden++;
-    else mislukt++;
+    if (d.contact) {
+      const res = await stuurStartBericht(
+        d.contact,
+        `${d.voornaam} ${d.familienaam}`,
+        d.toegangscode,
+        d.killcode
+      );
+      if (res.success) verzonden++;
+      else mislukt++;
+    } else {
+      mislukt++;
+    }
+    // Web-push (gratis, naast WhatsApp)
+    await pushNaarEenDeelnemer(supabase, d.id, {
+      titel: 'Summer Gotcha 2026',
+      tekst: `Welkom ${d.voornaam}! Het spel is gestart — open de app voor je doelwit.`,
+      url: '/mijn-doelwit',
+      tag: 'start',
+    }).catch(() => {});
   }
 
   // Stuur ook bericht naar marshalls
@@ -80,6 +91,12 @@ async function verwerkStart(supabase, stats, nu) {
     });
     if (res.verzonden > 0) marshallVerzonden++;
   }
+  await pushNaarMarshalls(supabase, {
+    titel: 'Summer Gotcha 2026',
+    tekst: 'Het spel is gestart! Beheer via de admin-pagina.',
+    url: '/admin',
+    tag: 'start',
+  }).catch(() => {});
 
   // Registreer in tijdlijn
   await supabase.from('tijdlijn').insert({

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import PushKnop from '../components/PushKnop';
 
 const BD = '#0D3B6E', AC = '#00B4D8', RD = '#C0392B', GD = '#F4D03F';
 const GR = '#1E8449', OR = '#E67E22', WIT = '#FFFFFF';
@@ -126,6 +127,9 @@ export default function MijnDoelwitPage() {
                 </div>
               )}
             </div>
+
+            {/* Gratis meldingen (web-push, naast WhatsApp) */}
+            <PushKnop auth={{ toegangscode: code.trim() }} />
 
             {/* Doelwit of wachten */}
             {data.status==='actief' && !data.spelGestart && (

@@ -2,6 +2,20 @@
 export const metadata = {
   title: 'Summer Gotcha 2026',
   description: 'Officieel opvolgingssysteem — Summer Gotcha 2026',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    title: 'Gotcha',
+    statusBarStyle: 'black-translucent',
+  },
+  icons: {
+    icon: '/icon-192.png',
+    apple: '/icon-192.png',
+  },
+}
+
+export const viewport = {
+  themeColor: '#0D3B6E',
 }
 
 export default function RootLayout({ children }) {

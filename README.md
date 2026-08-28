@@ -49,6 +49,16 @@ Summer Gotcha 2026 is een waterpistool eliminatiespel dat loopt van 12 juli tot 
 | `TWILIO_TEMPLATE_SID` | Twilio Content Template SID |
 | `NEXT_PUBLIC_APP_URL` | Publieke URL van de app |
 | `CRON_SECRET` | Geheim wachtwoord voor de cron job |
+| `VAPID_PUBLIC_KEY` | Web-push publieke sleutel (gratis browsermeldingen) |
+| `VAPID_PRIVATE_KEY` | Web-push privé sleutel |
+| `VAPID_SUBJECT` | `mailto:`-adres voor web-push (bv. `mailto:gotcha@…`) |
+
+### Web-push meldingen (gratis, naast WhatsApp)
+- Genereer een sleutelpaar: `node -e "console.log(require('web-push').generateVAPIDKeys())"`
+- Zet `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` in Vercel én in `.env.local`
+- Voer `supabase/schema_update7_push.sql` uit in de Supabase SQL Editor
+- Deelnemers zetten meldingen aan op `/mijn-doelwit`, marshalls op `/admin` → tab 📱
+- iPhone: enkel mogelijk als PWA ("Zet op beginscherm" via Safari)
 
 ## Database setup
 Voer `supabase/volledig_setup.sql` uit in de Supabase SQL Editor voor een nieuwe opzet.
