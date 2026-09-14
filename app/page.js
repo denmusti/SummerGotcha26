@@ -234,19 +234,29 @@ export default function PubliekePage() {
   async function laadData() {
     try {
       const res = await fetch('/api/data', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Serverfout ${res.status}`);
       const json = await res.json();
       setData(json);
+      return true;
     } catch (e) {
-      console.error(e);
+      // Bij een tijdelijke hik: NIET de bestaande (goede) weergave overschrijven
+      // met lege/foute data — gewoon laten staan en zo meteen opnieuw proberen.
+      console.error('Data laden mislukt:', e);
+      return false;
     } finally {
       setLaden(false);
     }
   }
 
   useEffect(() => {
-    laadData();
-    const interval = setInterval(laadData, 30000); // refresh elke 30s
-    return () => clearInterval(interval);
+    let snelleRetry;
+    async function tick() {
+      const ok = await laadData();
+      if (!ok) snelleRetry = setTimeout(tick, 3000); // snel herproberen na een hik
+    }
+    tick();
+    const interval = setInterval(tick, 30000); // normale refresh elke 30s
+    return () => { clearInterval(interval); clearTimeout(snelleRetry); };
   }, []);
 
   return (

@@ -8,8 +8,8 @@ export async function GET() {
   const [
     { data: stats, error: statsErr },
     { data: tijdlijn, error: tijdlijnErr },
-    { data: alleDeelnemers },
-    { data: alleKills },
+    { data: alleDeelnemers, error: deelnemersErr },
+    { data: alleKills, error: killsErr },
   ] = await Promise.all([
     supabase.from('stats').select('*').eq('id', 1).single(),
     supabase.from('tijdlijn').select('*').order('tijdstip', { ascending: false }).limit(50),
@@ -17,9 +17,12 @@ export async function GET() {
     supabase.from('kills').select('schutter_id, tijdstip'),
   ]);
 
-  if (statsErr || tijdlijnErr) {
-    console.error(statsErr, tijdlijnErr);
-    return Response.json({ error: 'Databasefout' }, { status: 500 });
+  // Belangrijk: bij een tijdelijke Supabase-hik op één van deze 4 queries mogen we
+  // NOOIT stilzwijgend verdergaan met lege lijsten — dat gaf soms "0 deelnemers /
+  // geen winnaar" op de publieke pagina terwijl de data er wél degelijk was.
+  if (statsErr || tijdlijnErr || deelnemersErr || killsErr) {
+    console.error('Data-fout:', statsErr || tijdlijnErr || deelnemersErr || killsErr);
+    return Response.json({ error: 'Databasefout — probeer opnieuw' }, { status: 503 });
   }
 
   const deelnemersLijst = alleDeelnemers || [];
@@ -86,12 +89,16 @@ export async function GET() {
     };
   }
 
-  // Sync tellers terug naar stats tabel (stille achtergrondtaak)
-  supabase.from('stats').update({
-    totaal_deelnemers: totaal,
-    levenden: levenden,
-    topschutter_aantal: topschutter,
-  }).eq('id', 1).then(() => {}).catch(() => {});
+  // Sync tellers terug naar stats tabel (stille achtergrondtaak) — enkel zolang
+  // het spel nog loopt; na afloop verandert er niets meer en bespaart dit
+  // onnodige writes op elke (auto-refreshende) publieke paginabezoek.
+  if (!spelGedaan) {
+    supabase.from('stats').update({
+      totaal_deelnemers: totaal,
+      levenden: levenden,
+      topschutter_aantal: topschutter,
+    }).eq('id', 1).then(() => {}).catch(() => {});
+  }
 
   return Response.json({
     totaalDeelnemers: totaal,
@@ -120,15 +127,15 @@ export async function POST(request) {
     const supabase = getSupabaseServer();
 
     // Wachtwoord controleren
-    const { data: huidigeStats, error: leesErr } = await supabase
-      .from('stats').select('wachtwoord').eq('id', 1).single();
+    const { data: stats, error: leesErr } = await supabase
+      .from('stats').select('wachtwoord, start_datum, eind_datum').eq('id', 1).single();
 
     if (leesErr) {
       console.error(leesErr);
       return Response.json({ error: 'Databasefout' }, { status: 500 });
     }
 
-    if (body.wachtwoord !== huidigeStats.wachtwoord) {
+    if (body.wachtwoord !== stats.wachtwoord) {
       return Response.json({ error: 'Ongeldig wachtwoord' }, { status: 401 });
     }
 
